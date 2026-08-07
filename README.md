@@ -36,7 +36,15 @@ The public site is available at `http://localhost:3000`. The admin panel is at
 
 ## Docker
 
-For a full app + database setup:
+Create the environment file first — Compose reads `.env` from this directory
+and the app container will not start without it:
+
+```bash
+cp .env.example .env
+```
+
+Fill in `POSTGRES_PASSWORD`, `AUTH_SECRET`, `AUTH_URL`, `ADMIN_EMAIL`, and
+`ADMIN_PASSWORD`, then:
 
 ```bash
 docker compose up --build
@@ -45,13 +53,34 @@ docker compose up --build
 On startup the app container runs `prisma migrate deploy`, seeds the admin user
 and default content, then starts the standalone Next.js server.
 
-Before deploying, change at least:
+**Write `.env` values unquoted.** Compose loads the file with `format: raw` so
+that a `$` in a password survives; the tradeoff is that quotes are not
+stripped, and `ADMIN_PASSWORD="hunter2"` would make the quote characters part
+of the password. The seed refuses to run on a quoted or placeholder
+`ADMIN_PASSWORD` rather than creating an admin you cannot log in as.
 
-- `AUTH_SECRET`
-- `AUTH_URL`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-- database password / connection string
+`POSTGRES_PASSWORD` is the exception: it is interpolated into `DATABASE_URL`,
+so keep it to letters and digits. `$` is dropped during interpolation and
+`@ : /` break the connection URL.
+
+To confirm the container actually received your values:
+
+```bash
+docker compose exec app env | grep -E 'ADMIN|AUTH'
+```
+
+### Changing the admin credentials later
+
+`ADMIN_PASSWORD` is re-seeded on every container start, so changing it in
+`.env` and running `docker compose up -d --force-recreate` resets the password.
+
+Changing `ADMIN_EMAIL` instead creates a *second* admin and leaves the previous
+one active. Remove the old account by hand:
+
+```bash
+docker compose exec db psql -U werkgroep -d werkgroep \
+  -c "delete from \"AdminUser\" where email='old@example.org';"
+```
 
 Uploaded logos and photos are stored in the `uploads` Docker volume mounted at
 `/app/uploads`.

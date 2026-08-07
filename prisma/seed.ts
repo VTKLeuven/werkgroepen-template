@@ -19,6 +19,22 @@ async function seedAdmin() {
     return;
   }
 
+  // Refuse the .env.example placeholders rather than seeding an admin account
+  // with publicly known credentials.
+  if (password === "change-me-before-deploy") {
+    throw new Error(
+      "ADMIN_PASSWORD is still the .env.example placeholder. Set a real value in .env and restart.",
+    );
+  }
+
+  // format: raw keeps quotes literal, so a quoted .env value would silently
+  // become part of the password and login would never match.
+  if (/^["'][\s\S]*["']$/.test(password)) {
+    throw new Error(
+      "ADMIN_PASSWORD is wrapped in quotes. Write it unquoted in .env, otherwise the quotes become part of the password.",
+    );
+  }
+
   await prisma.adminUser.upsert({
     where: { email },
     update: {

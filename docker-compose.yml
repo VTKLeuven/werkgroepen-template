@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: werkgroep
       POSTGRES_USER: werkgroep
-      POSTGRES_PASSWORD: werkgroep
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -22,13 +22,17 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
+    # Reads AUTH_SECRET, AUTH_URL, ADMIN_EMAIL, ADMIN_PASSWORD from .env.
+    # format: raw passes values through literally, so a "$" in a password
+    # survives. It also means quotes are NOT stripped -- write values
+    # unquoted in .env (see .env.example).
+    env_file:
+      - path: .env
+        format: raw
+    # environment takes precedence over env_file, so these win over any
+    # local-development values left in .env.
     environment:
-      DATABASE_URL: postgresql://werkgroep:werkgroep@db:5432/werkgroep?schema=public
-      AUTH_SECRET: change-me-with-npx-auth-secret
-      AUTH_URL: http://localhost:3000
-      ADMIN_EMAIL: admin@example.org
-      ADMIN_PASSWORD: change-me-before-deploy
-      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      DATABASE_URL: postgresql://werkgroep:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/werkgroep?schema=public
       UPLOAD_DIR: /app/uploads
     volumes:
       - uploads:/app/uploads
