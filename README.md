@@ -82,6 +82,29 @@ docker compose exec db psql -U werkgroep -d werkgroep \
   -c "delete from \"AdminUser\" where email='old@example.org';"
 ```
 
+### Changing POSTGRES_PASSWORD on an existing deployment
+
+Postgres only applies `POSTGRES_PASSWORD` when it initializes an *empty* data
+directory. On a deployment whose `postgres-data` volume already exists, editing
+`POSTGRES_PASSWORD` in `.env` changes what the app sends but not what the
+database expects, and the app crash-loops on:
+
+```
+Error: P1000: Authentication failed against database server
+```
+
+Update the stored password to match `.env`. Local socket connections inside the
+db container use `trust` auth, so the old password is not needed:
+
+```bash
+docker compose exec -T db sh -c \
+  'echo "ALTER USER werkgroep WITH PASSWORD :'\''pw'\'';" | psql -U werkgroep -d werkgroep -v pw="$POSTGRES_PASSWORD"'
+```
+
+The app recovers on its next restart attempt. Alternatively `docker compose
+down -v` starts clean, but that also deletes the uploads volume and all
+content.
+
 Uploaded logos and photos are stored in the `uploads` Docker volume mounted at
 `/app/uploads`.
 
