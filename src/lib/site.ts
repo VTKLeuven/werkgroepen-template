@@ -31,7 +31,7 @@ export async function getSiteData() {
       }),
       prisma.themeSettings.findUnique({ where: { id: "theme" } }),
       prisma.siteSection.findMany({
-        orderBy: [{ sortOrder: "asc" }, { key: "asc" }],
+        orderBy: [{ homepageOrder: "asc" }, { key: "asc" }],
       }),
       currentAcademicYear
         ? prisma.teamMemberYear.findMany({
@@ -73,7 +73,7 @@ export async function getSiteData() {
   const orderedSections = [
     ...sections,
     ...defaultSections.filter((section) => !storedSectionKeys.has(section.key)),
-  ].sort((left, right) => left.sortOrder - right.sortOrder);
+  ].sort((left, right) => left.homepageOrder - right.homepageOrder);
 
   return {
     settings: settings ?? defaultSettings,
@@ -181,6 +181,7 @@ export const defaultSections = [
   {
     key: "about" as const,
     sortOrder: 0,
+    homepageOrder: 0,
     isVisible: true,
     showInNavigation: true,
     createdAt: new Date(),
@@ -189,6 +190,7 @@ export const defaultSections = [
   {
     key: "team" as const,
     sortOrder: 1,
+    homepageOrder: 1,
     isVisible: true,
     showInNavigation: true,
     createdAt: new Date(),
@@ -197,6 +199,7 @@ export const defaultSections = [
   {
     key: "events" as const,
     sortOrder: 2,
+    homepageOrder: 2,
     isVisible: true,
     showInNavigation: true,
     createdAt: new Date(),
@@ -205,6 +208,7 @@ export const defaultSections = [
   {
     key: "contact" as const,
     sortOrder: 3,
+    homepageOrder: 3,
     isVisible: true,
     showInNavigation: true,
     createdAt: new Date(),
@@ -213,6 +217,7 @@ export const defaultSections = [
   {
     key: "partners" as const,
     sortOrder: 4,
+    homepageOrder: 4,
     isVisible: true,
     showInNavigation: true,
     createdAt: new Date(),

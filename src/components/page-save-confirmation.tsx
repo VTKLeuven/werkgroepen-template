@@ -9,27 +9,29 @@ export function PageSaveConfirmation({
   title,
   summary,
   publicHref,
+  closeHref,
 }: {
   title: string;
   summary: string;
   publicHref: string | null;
+  closeHref: string;
 }) {
   const router = useRouter();
 
   function close() {
-    router.replace("/admin/pages", { scroll: false });
+    router.replace(closeHref, { scroll: false });
   }
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        router.replace("/admin/pages", { scroll: false });
+        router.replace(closeHref, { scroll: false });
       }
     }
 
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [router]);
+  }, [closeHref, router]);
 
   return (
     <div

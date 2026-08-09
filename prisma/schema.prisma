@@ -185,6 +185,7 @@ model MediaAsset {
 model SiteSection {
   key              SectionKey @id
   sortOrder        Int
+  homepageOrder    Int        @default(0)
   isVisible        Boolean    @default(true)
   showInNavigation Boolean    @default(true)
   createdAt        DateTime   @default(now())

@@ -11,11 +11,11 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 const defaultSections = [
-  { key: "about", sortOrder: 0 },
-  { key: "team", sortOrder: 1 },
-  { key: "events", sortOrder: 2 },
-  { key: "contact", sortOrder: 3 },
-  { key: "partners", sortOrder: 4 },
+  { key: "about", sortOrder: 0, homepageOrder: 0 },
+  { key: "team", sortOrder: 1, homepageOrder: 1 },
+  { key: "events", sortOrder: 2, homepageOrder: 2 },
+  { key: "contact", sortOrder: 3, homepageOrder: 3 },
+  { key: "partners", sortOrder: 4, homepageOrder: 4 },
 ] as const;
 
 async function seedAdmin() {

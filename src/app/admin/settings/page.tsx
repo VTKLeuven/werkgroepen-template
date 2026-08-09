@@ -14,8 +14,19 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string }>;
 }) {
   await requireAdmin();
-  const [{ settings, theme, sections, customPages }, params, allCustomPages] =
-    await Promise.all([
+  const [
+    {
+      settings,
+      theme,
+      sections,
+      customPages,
+      teamMembers,
+      events,
+      partners,
+    },
+    params,
+    allCustomPages,
+  ] = await Promise.all([
       getSiteData(),
       searchParams,
       prisma.customPage.findMany({
@@ -36,11 +47,22 @@ export default async function SettingsPage({
     settings.defaultLocale,
     settings.languageMode,
   );
-  const navigationItems = [
+  const homepageSections = sections
+    .map((section) => ({
+      type: "section" as const,
+      key: section.key,
+      sortOrder: section.sortOrder,
+      homepageOrder: section.homepageOrder,
+      isVisible: section.isVisible,
+      showInNavigation: section.showInNavigation,
+    }))
+    .sort((left, right) => left.homepageOrder - right.homepageOrder);
+  const headerNavigationItems = [
     ...sections.map((section) => ({
       type: "section" as const,
       key: section.key,
       sortOrder: section.sortOrder,
+      homepageOrder: section.homepageOrder,
       isVisible: section.isVisible,
       showInNavigation: section.showInNavigation,
     })),
@@ -135,7 +157,38 @@ export default async function SettingsPage({
             heroTitleFontScale: theme.heroTitleFontScale,
             heroBodyFontScale: theme.heroBodyFontScale,
           },
-          navigationItems,
+          homepageSections,
+          headerNavigationItems,
+          previewContent: {
+            team: teamMembers.slice(0, 6).map((member) => ({
+              name: member.name,
+              role: localized(
+                adminLocale,
+                member.functionNameEn,
+                member.functionNameNl,
+                member.functionName,
+              ),
+              imageUrl: mediaUrl(member.imageMediaId),
+            })),
+            events: events.slice(0, 4).map((event) => ({
+              title: localized(
+                adminLocale,
+                event.titleEn,
+                event.titleNl,
+                event.title,
+              ),
+              imageUrl: mediaUrl(event.pictureMediaId),
+            })),
+            partners: partners.slice(0, 6).map((partner) => ({
+              name: localized(
+                adminLocale,
+                partner.nameEn,
+                partner.nameNl,
+                partner.name,
+              ),
+              imageUrl: mediaUrl(partner.logoMediaId),
+            })),
+          },
           customPageLinks: customPages.map((page) => ({
             title: localized(adminLocale, page.titleEn, page.titleNl, page.slug),
             href: `/pages/${page.slug}`,

@@ -14,41 +14,37 @@ export function AdminShell({
 }) {
   return (
     <main className="min-h-screen bg-[#f5f1e8] text-[#211f1c]">
-      <header className="border-b border-black/10 bg-white/80 px-4 py-4 backdrop-blur sm:px-8">
-        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#006d77]">
-              Admin
-            </p>
-            <h1 className="text-2xl font-semibold">{title}</h1>
-            {description ? (
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-[#6f6860]">
-                {description}
-              </p>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="mx-auto grid max-w-[1800px] gap-5 px-4 py-4 sm:px-8 lg:grid-cols-[9.5rem_minmax(0,1fr)] lg:py-6">
+        <aside className="flex min-w-0 flex-col lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
+          <AdminNav />
+          <div className="mt-3 flex gap-2 border-t border-black/10 pt-3 lg:mt-auto lg:grid">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-full bg-[#006d77] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#005d66] hover:shadow-md"
+              target="_blank"
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-[#006d77] px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#005d66] hover:shadow-md"
             >
-              <ExternalLink size={16} />
+              <ExternalLink size={15} />
               View website
             </Link>
             <form action={logoutAction}>
-              <button className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#3a352f] transition hover:border-black/20 hover:bg-[#faf8f3]">
-                <LogOut size={16} />
+              <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-semibold text-[#3a352f] transition hover:border-black/20 hover:bg-[#faf8f3]">
+                <LogOut size={15} />
                 Sign out
               </button>
             </form>
           </div>
-        </div>
-      </header>
-      <div className="mx-auto grid max-w-[1800px] gap-5 px-4 py-6 sm:px-8 lg:grid-cols-[9.5rem_minmax(0,1fr)]">
-        <aside className="min-w-0">
-          <AdminNav />
         </aside>
-        <section className="min-w-0">{children}</section>
+        <section className="min-w-0">
+          <div className="mb-5">
+            <h1 className="text-2xl font-semibold">{title}</h1>
+            {description ? (
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-[#6f6860]">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          {children}
+        </section>
       </div>
     </main>
   );

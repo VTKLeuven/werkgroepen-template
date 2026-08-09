@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function PagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; editing?: string }>;
 }) {
   await requireAdmin();
   const [pages, siteSettings, themeSettings, params] = await Promise.all([
@@ -78,6 +78,7 @@ export default async function PagesPage({
           publicHref={
             savedPage.isPublished ? `/pages/${savedPage.slug}` : null
           }
+          closeHref={`/admin/pages?editing=${encodeURIComponent(savedPage.id)}#page-${encodeURIComponent(savedPage.id)}`}
         />
       ) : null}
       <div className="grid gap-6">
@@ -112,7 +113,8 @@ export default async function PagesPage({
               return (
                 <details
                   key={page.id}
-                  open={page.id === params.saved}
+                  id={`page-${page.id}`}
+                  open={page.id === params.saved || page.id === params.editing}
                   className="rounded-3xl border border-black/10 bg-white p-4"
                 >
                   <summary className="cursor-pointer list-none">

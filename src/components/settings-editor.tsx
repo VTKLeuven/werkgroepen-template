@@ -8,16 +8,25 @@ import {
 } from "react";
 import { useFormStatus } from "react-dom";
 import {
+  AlertCircle,
   Check,
+  ChevronDown,
+  Contact,
+  Eye,
   ImageIcon,
+  Languages,
+  LayoutList,
+  Menu,
   Monitor,
+  Palette,
+  PanelTop,
   Save,
   Smartphone,
   Type,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Field,
-  Panel,
   inputClass,
   textareaClass,
 } from "@/components/admin-shell";
@@ -29,8 +38,10 @@ import {
   type CoverSettings,
 } from "@/components/cover-settings-editor";
 import {
-  NavigationOrderBoard,
+  HeaderNavigationBoard,
+  HomepageOrderBoard,
   type EditableNavigationItem,
+  type EditableSection,
 } from "@/components/section-order-board";
 import { updateSettings } from "@/lib/admin-actions";
 import {
@@ -92,7 +103,13 @@ type EditorInitial = {
     heroTitleFontScale: number;
     heroBodyFontScale: number;
   };
-  navigationItems: EditableNavigationItem[];
+  homepageSections: EditableSection[];
+  headerNavigationItems: EditableNavigationItem[];
+  previewContent: {
+    team: { name: string; role: string; imageUrl: string | null }[];
+    events: { title: string; imageUrl: string | null }[];
+    partners: { name: string; imageUrl: string | null }[];
+  };
   customPageLinks: { title: string; href: string }[];
 };
 
@@ -130,12 +147,33 @@ export function SettingsEditor({
   const [removeAboutImage, setRemoveAboutImage] = useState(false);
   const [removeFavicon, setRemoveFavicon] = useState(false);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [showPreview, setShowPreview] = useState(false);
+  const [homepageSections, setHomepageSections] = useState(
+    initial.homepageSections,
+  );
+  const [headerNavigationItems, setHeaderNavigationItems] = useState(
+    initial.headerNavigationItems,
+  );
+  const [contactEmail, setContactEmail] = useState(initial.contactEmail);
+  const [facebookUrl, setFacebookUrl] = useState(initial.facebookUrl);
+  const [instagramUrl, setInstagramUrl] = useState(initial.instagramUrl);
+  const [linkedinUrl, setLinkedinUrl] = useState(initial.linkedinUrl);
   const [dirty, setDirty] = useState(false);
 
   useObjectUrlCleanup(logoUrl);
   useObjectUrlCleanup(heroUrl);
   useObjectUrlCleanup(aboutImageUrl);
   useObjectUrlCleanup(faviconUrl);
+
+  useEffect(() => {
+    if (!dirty) return;
+    function warnBeforeLeaving(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [dirty]);
 
   const languageMode: LanguageMode =
     languageChoice === "bilingual"
@@ -164,10 +202,30 @@ export function SettingsEditor({
     setUrl(URL.createObjectURL(file));
   }
 
+  function updateHomepageItems(next: EditableSection[]) {
+    setHomepageSections(next);
+    const visibility = new Map(next.map((section) => [section.key, section.isVisible]));
+    setHeaderNavigationItems((current) =>
+      current.map((item) => {
+        if (item.type !== "section") return item;
+        const isVisible = visibility.get(item.key) ?? item.isVisible;
+        return {
+          ...item,
+          isVisible,
+          showInNavigation: isVisible ? item.showInNavigation : false,
+        };
+      }),
+    );
+  }
+
   return (
     <form
       action={updateSettings}
-      className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.72fr)]"
+      className={`grid items-start gap-6 ${
+        showPreview
+          ? "xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.72fr)]"
+          : "grid-cols-1"
+      }`}
       onInput={(event) => {
         if (!(event.target as HTMLElement).closest("[data-auto-save]")) {
           setDirty(true);
@@ -188,7 +246,27 @@ export function SettingsEditor({
           </p>
         ) : null}
 
-        <Panel
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#006d77]/15 bg-[#006d77]/5 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-[#231f20]">
+              Settings are grouped by purpose
+            </p>
+            <p className="mt-0.5 text-xs text-[#6f6860]">
+              Open only what you need. The full-page preview is available on demand.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPreview((current) => !current)}
+            className="inline-flex items-center gap-2 rounded-full border border-[#006d77]/20 bg-white px-4 py-2 text-sm font-semibold text-[#006d77] shadow-sm transition hover:-translate-y-0.5"
+          >
+            {showPreview ? <Eye size={16} /> : <Monitor size={16} />}
+            {showPreview ? "Hide preview" : "Show full preview"}
+          </button>
+        </div>
+
+        <SettingsSection
+          icon={Languages}
           title="Languages"
           description="Choose whether editors manage one public language or English and Dutch side by side."
         >
@@ -233,17 +311,11 @@ export function SettingsEditor({
               </select>
             </Field>
           </div>
-        </Panel>
+        </SettingsSection>
 
-        <Panel
-          title="Homepage and header order"
-          description="Manage homepage sections and place every header item—including custom pages—in one global order."
-        >
-          <NavigationOrderBoard items={initial.navigationItems} />
-        </Panel>
-
-        <Panel
-          title="Brand"
+        <SettingsSection
+          icon={PanelTop}
+          title="Brand and header"
           description="Set the name visitors see and choose how your logo behaves in the header."
         >
           <div className="grid gap-4">
@@ -330,9 +402,10 @@ export function SettingsEditor({
               />
             </div>
           </div>
-        </Panel>
+        </SettingsSection>
 
-        <Panel
+        <SettingsSection
+          icon={ImageIcon}
           title="Hero"
           description="The live preview updates while you type and also shows a newly selected photo before saving."
         >
@@ -461,9 +534,13 @@ export function SettingsEditor({
               </p>
             </Field>
           </div>
-        </Panel>
+        </SettingsSection>
 
-        <Panel title="About section">
+        <SettingsSection
+          icon={Contact}
+          title="About section"
+          description="Edit the homepage introduction and its optional side image."
+        >
           <div className="grid gap-4">
             <LocalizedControl
               label="Title"
@@ -489,7 +566,6 @@ export function SettingsEditor({
               name="aboutImage"
               currentName={initial.aboutImageName}
               previewUrl={removeAboutImage ? null : aboutImageUrl}
-              wide
               removeName="removeAboutImage"
               remove={removeAboutImage}
               onRemove={(checked) => {
@@ -502,41 +578,64 @@ export function SettingsEditor({
               }}
               help="On phones the image moves below the About text."
             />
-            <label className="block text-sm font-semibold text-[#3a352f]">
-              <span className="flex items-center justify-between gap-2">
-                Image column width
-                <output>{Math.round(aboutCoverColumnWidth)}%</output>
-              </span>
-              <input
-                name="aboutCoverColumnWidth"
-                type="range"
-                min="30"
-                max="60"
-                step="1"
-                value={aboutCoverColumnWidth}
-                onChange={(event) =>
-                  setAboutCoverColumnWidth(Number(event.target.value))
-                }
-                className="mt-2 block w-full accent-[#006d77]"
+            {visibleAboutImageUrl ? (
+              <details className="group rounded-2xl border border-black/10 bg-[#faf8f3]">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-2">
+                    <ImageIcon size={16} className="text-[#006d77]" />
+                    Image appearance
+                  </span>
+                  <ChevronDown
+                    size={17}
+                    className="text-[#8b847b] transition group-open:rotate-180"
+                  />
+                </summary>
+                <div className="grid gap-4 border-t border-black/5 p-4">
+                  <label className="block max-w-md text-sm font-semibold text-[#3a352f]">
+                    <span className="flex items-center justify-between gap-2">
+                      Image column width
+                      <output>{Math.round(aboutCoverColumnWidth)}%</output>
+                    </span>
+                    <input
+                      name="aboutCoverColumnWidth"
+                      type="range"
+                      min="30"
+                      max="60"
+                      step="1"
+                      value={aboutCoverColumnWidth}
+                      onChange={(event) =>
+                        setAboutCoverColumnWidth(Number(event.target.value))
+                      }
+                      className="mt-2 block w-full accent-[#006d77]"
+                    />
+                  </label>
+                  <CoverSettingsEditor
+                    namePrefix="aboutCover"
+                    value={aboutCover}
+                    onChange={(nextValue) => {
+                      setAboutCover(nextValue);
+                      setDirty(true);
+                    }}
+                    previewUrl={visibleAboutImageUrl}
+                    previewAlt="About section"
+                    frameShape="side"
+                  />
+                </div>
+              </details>
+            ) : (
+              <HiddenAboutCoverSettings
+                cover={aboutCover}
+                columnWidth={aboutCoverColumnWidth}
               />
-            </label>
-            <div className="rounded-3xl border border-black/10 p-4 sm:p-5">
-              <CoverSettingsEditor
-                namePrefix="aboutCover"
-                value={aboutCover}
-                onChange={(nextValue) => {
-                  setAboutCover(nextValue);
-                  setDirty(true);
-                }}
-                previewUrl={removeAboutImage ? null : aboutImageUrl}
-                previewAlt="About section"
-                frameShape="side"
-              />
-            </div>
+            )}
           </div>
-        </Panel>
+        </SettingsSection>
 
-        <Panel title="Contact and social links">
+        <SettingsSection
+          icon={Contact}
+          title="Contact and social links"
+          description="Set the contact copy, email address, and social profiles."
+        >
           <div className="grid gap-4">
             <LocalizedControl
               label="Title"
@@ -563,7 +662,8 @@ export function SettingsEditor({
                 name="contactEmail"
                 type="email"
                 required
-                defaultValue={initial.contactEmail}
+                value={contactEmail}
+                onChange={(event) => setContactEmail(event.target.value)}
                 className={inputClass}
               />
             </Field>
@@ -572,7 +672,8 @@ export function SettingsEditor({
                 <input
                   name="facebookUrl"
                   type="url"
-                  defaultValue={initial.facebookUrl}
+                  value={facebookUrl}
+                  onChange={(event) => setFacebookUrl(event.target.value)}
                   className={inputClass}
                 />
               </Field>
@@ -580,7 +681,8 @@ export function SettingsEditor({
                 <input
                   name="instagramUrl"
                   type="url"
-                  defaultValue={initial.instagramUrl}
+                  value={instagramUrl}
+                  onChange={(event) => setInstagramUrl(event.target.value)}
                   className={inputClass}
                 />
               </Field>
@@ -588,15 +690,45 @@ export function SettingsEditor({
                 <input
                   name="linkedinUrl"
                   type="url"
-                  defaultValue={initial.linkedinUrl}
+                  value={linkedinUrl}
+                  onChange={(event) => setLinkedinUrl(event.target.value)}
                   className={inputClass}
                 />
               </Field>
             </div>
           </div>
-        </Panel>
+        </SettingsSection>
 
-        <Panel
+        <SettingsSection
+          icon={LayoutList}
+          title="Homepage sections"
+          description="Choose which default sections appear on the homepage and arrange their order."
+          badge="Auto-saves"
+        >
+          <HomepageOrderBoard
+            items={homepageSections}
+            onItemsChange={updateHomepageItems}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Menu}
+          title="Header navigation"
+          description="Arrange default sections and custom pages together in the website header."
+          badge="Auto-saves"
+        >
+          <HeaderNavigationBoard
+            key={headerNavigationItems
+              .filter((item) => item.type === "section")
+              .map((item) => `${item.key}:${item.isVisible}`)
+              .join("|")}
+            items={headerNavigationItems}
+            onItemsChange={setHeaderNavigationItems}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Palette}
           title="Colors and typography"
           description="Use restrained adjustments to keep the layout readable on phones and large screens."
         >
@@ -701,16 +833,30 @@ export function SettingsEditor({
               }
             />
           </div>
-        </Panel>
+        </SettingsSection>
 
-        <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+        <div
+          className={`sticky bottom-4 z-20 flex flex-wrap items-center gap-3 rounded-3xl border p-4 shadow-xl backdrop-blur ${
+            dirty
+              ? "border-amber-300 bg-amber-50/95 shadow-amber-950/10"
+              : "border-emerald-200 bg-white/95 shadow-black/10"
+          }`}
+        >
           <SaveButton />
-          <p className="text-sm text-[#6f6860]">
-            {dirty ? "You have unsaved changes." : "Everything shown is saved."}
+          <p
+            className={`flex items-center gap-2 text-sm font-semibold ${
+              dirty ? "text-amber-900" : "text-emerald-700"
+            }`}
+          >
+            {dirty ? <AlertCircle size={17} /> : <Check size={17} />}
+            {dirty
+              ? "Unsaved changes — save before leaving this page."
+              : "All website settings are saved."}
           </p>
         </div>
       </div>
 
+      {showPreview ? (
       <aside className="min-w-0 xl:sticky xl:top-6">
         <div className="flex max-h-[calc(100vh-3rem)] flex-col rounded-[2rem] bg-[#211f1c] p-3 shadow-xl shadow-black/15">
           <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 px-2 pt-1 text-white">
@@ -718,7 +864,7 @@ export function SettingsEditor({
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
                 Live preview
               </p>
-              <p className="text-sm font-semibold">Header, hero and intro</p>
+              <p className="text-sm font-semibold">Full homepage</p>
             </div>
             <div className="flex gap-1 rounded-full bg-white/10 p-1">
               <PreviewButton
@@ -838,72 +984,33 @@ export function SettingsEditor({
               </div>
             </div>
 
+            {homepageSections
+              .filter((section) => section.isVisible)
+              .map((section) => (
+                <PreviewHomepageSection
+                  key={section.key}
+                  section={section.key}
+                  locale={activePreviewLocale}
+                  device={device}
+                  copy={copy}
+                  colors={colors}
+                  typography={typography}
+                  aboutImageUrl={visibleAboutImageUrl}
+                  aboutCover={aboutCover}
+                  aboutCoverColumnWidth={aboutCoverColumnWidth}
+                  previewContent={initial.previewContent}
+                  contactEmail={contactEmail}
+                  socialLinks={{ facebookUrl, instagramUrl, linkedinUrl }}
+                />
+              ))}
             <div
-              className="p-5"
-              style={{ backgroundColor: colors.backgroundColor, color: colors.textColor }}
+              className="border-t border-black/10 px-5 py-4 text-center text-[10px]"
+              style={{
+                backgroundColor: colors.headerColor,
+                color: colors.mutedColor,
+              }}
             >
-              <div
-                className={`grid items-start gap-4 ${
-                  visibleAboutImageUrl && device === "desktop" ? "" : "grid-cols-1"
-                }`}
-                style={
-                  visibleAboutImageUrl && device === "desktop"
-                    ? {
-                        gridTemplateColumns: `${
-                          100 - aboutCoverColumnWidth
-                        }fr ${aboutCoverColumnWidth}fr`,
-                      }
-                    : undefined
-                }
-              >
-                <div>
-                  <p
-                    className="font-semibold uppercase tracking-[0.16em]"
-                    style={{ color: colors.primaryColor, fontSize: ".58rem" }}
-                  >
-                    {activePreviewLocale === "nl" ? "Over" : "About"}
-                  </p>
-                  <h3
-                    className="mt-1 font-semibold"
-                    style={{
-                      fontSize: `${1.55 * typography.headingFontScale}rem`,
-                    }}
-                  >
-                    {copy.aboutTitle[activePreviewLocale]}
-                  </h3>
-                  <div
-                    className="mt-3"
-                    style={{
-                      color: colors.mutedColor,
-                      fontSize: `${0.76 * typography.bodyFontScale}rem`,
-                    }}
-                  >
-                    <MarkdownContent
-                      headingOffset={3}
-                      className="markdown-preview-compact leading-relaxed"
-                    >
-                      {copy.aboutText[activePreviewLocale]}
-                    </MarkdownContent>
-                  </div>
-                </div>
-                {visibleAboutImageUrl ? (
-                  <CustomPageCover
-                    src={visibleAboutImageUrl}
-                    alt=""
-                    mode={aboutCover.mode}
-                    width={aboutCover.width}
-                    positionX={aboutCover.positionX}
-                    positionY={aboutCover.positionY}
-                    zoom={aboutCover.zoom}
-                    borderWidth={aboutCover.borderWidth}
-                    borderStyle={aboutCover.borderStyle}
-                    borderColor={aboutCover.borderColor}
-                    borderRadius={aboutCover.borderRadius}
-                    shadow={aboutCover.shadow}
-                    frameShape="side"
-                  />
-                ) : null}
-              </div>
+              {copy.siteName[activePreviewLocale]} · Full homepage preview
             </div>
           </div>
 
@@ -915,7 +1022,400 @@ export function SettingsEditor({
           </div>
         </div>
       </aside>
+      ) : null}
     </form>
+  );
+}
+
+function SettingsSection({
+  icon: Icon,
+  title,
+  description,
+  badge,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  badge?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-black/5">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-4 transition hover:bg-black/[0.015] sm:px-5 [&::-webkit-details-marker]:hidden">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#006d77]/8 text-[#006d77]">
+          <Icon size={19} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-[#231f20]">{title}</span>
+            {badge ? (
+              <span className="rounded-full bg-[#006d77]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#006d77]">
+                {badge}
+              </span>
+            ) : null}
+          </span>
+          {description ? (
+            <span className="mt-0.5 block text-xs leading-5 text-[#6f6860]">
+              {description}
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown
+          size={19}
+          className="shrink-0 text-[#8b847b] transition group-open:rotate-180"
+        />
+      </summary>
+      <div className="border-t border-black/5 p-4 sm:p-5">{children}</div>
+    </details>
+  );
+}
+
+function HiddenAboutCoverSettings({
+  cover,
+  columnWidth,
+}: {
+  cover: CoverSettings;
+  columnWidth: number;
+}) {
+  return (
+    <>
+      <input type="hidden" name="aboutCoverColumnWidth" value={columnWidth} />
+      <input type="hidden" name="aboutCoverDisplayMode" value={cover.mode} />
+      <input type="hidden" name="aboutCoverWidth" value={cover.width} />
+      <input type="hidden" name="aboutCoverPositionX" value={cover.positionX} />
+      <input type="hidden" name="aboutCoverPositionY" value={cover.positionY} />
+      <input type="hidden" name="aboutCoverZoom" value={cover.zoom} />
+      <input type="hidden" name="aboutCoverBorderWidth" value={cover.borderWidth} />
+      <input type="hidden" name="aboutCoverBorderStyle" value={cover.borderStyle} />
+      <input type="hidden" name="aboutCoverBorderColor" value={cover.borderColor} />
+      <input type="hidden" name="aboutCoverBorderRadius" value={cover.borderRadius} />
+      <input type="hidden" name="aboutCoverFrameShadow" value={cover.shadow} />
+    </>
+  );
+}
+
+function PreviewHomepageSection({
+  section,
+  locale,
+  device,
+  copy,
+  colors,
+  typography,
+  aboutImageUrl,
+  aboutCover,
+  aboutCoverColumnWidth,
+  previewContent,
+  contactEmail,
+  socialLinks,
+}: {
+  section: EditableSection["key"];
+  locale: Locale;
+  device: "desktop" | "mobile";
+  copy: LocalizedCopy;
+  colors: EditorInitial["colors"];
+  typography: EditorInitial["typography"];
+  aboutImageUrl: string | null;
+  aboutCover: CoverSettings;
+  aboutCoverColumnWidth: number;
+  previewContent: EditorInitial["previewContent"];
+  contactEmail: string;
+  socialLinks: {
+    facebookUrl: string;
+    instagramUrl: string;
+    linkedinUrl: string;
+  };
+}) {
+  const labels = {
+    team: locale === "nl" ? "Team" : "Team",
+    events: locale === "nl" ? "Evenementen" : "Events",
+    partners: locale === "nl" ? "Partners" : "Partners",
+  };
+  const sectionStyle = {
+    backgroundColor: colors.backgroundColor,
+    color: colors.textColor,
+  };
+  const headingStyle = {
+    fontSize: `${1.45 * typography.headingFontScale}rem`,
+  };
+  const bodyStyle = {
+    color: colors.mutedColor,
+    fontSize: `${0.72 * typography.bodyFontScale}rem`,
+  };
+
+  if (section === "about") {
+    return (
+      <section className="border-t border-black/5 p-5" style={sectionStyle}>
+        <div
+          className={`grid items-start gap-4 ${
+            aboutImageUrl && device === "desktop" ? "" : "grid-cols-1"
+          }`}
+          style={
+            aboutImageUrl && device === "desktop"
+              ? {
+                  gridTemplateColumns: `${100 - aboutCoverColumnWidth}fr ${aboutCoverColumnWidth}fr`,
+                }
+              : undefined
+          }
+        >
+          <div>
+            <PreviewEyebrow color={colors.primaryColor}>
+              {locale === "nl" ? "Over" : "About"}
+            </PreviewEyebrow>
+            <h3 className="mt-1 font-semibold" style={headingStyle}>
+              {copy.aboutTitle[locale]}
+            </h3>
+            <div className="mt-3" style={bodyStyle}>
+              <MarkdownContent
+                headingOffset={3}
+                className="markdown-preview-compact leading-relaxed"
+              >
+                {copy.aboutText[locale]}
+              </MarkdownContent>
+            </div>
+          </div>
+          {aboutImageUrl ? (
+            <CustomPageCover
+              src={aboutImageUrl}
+              alt=""
+              mode={aboutCover.mode}
+              width={aboutCover.width}
+              positionX={aboutCover.positionX}
+              positionY={aboutCover.positionY}
+              zoom={aboutCover.zoom}
+              borderWidth={aboutCover.borderWidth}
+              borderStyle={aboutCover.borderStyle}
+              borderColor={aboutCover.borderColor}
+              borderRadius={aboutCover.borderRadius}
+              shadow={aboutCover.shadow}
+              frameShape="side"
+            />
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  if (section === "team") {
+    return (
+      <PreviewSectionShell
+        eyebrow={locale === "nl" ? "Mensen" : "People"}
+        title={labels.team}
+        colors={colors}
+        headingStyle={headingStyle}
+      >
+        <div className="grid grid-cols-3 gap-2">
+          {previewContent.team.length ? (
+            previewContent.team.map((member, index) => (
+              <div
+                key={`${member.name}-${index}`}
+                className="min-w-0 rounded-xl p-2"
+                style={{ backgroundColor: colors.surfaceColor }}
+              >
+                <PreviewImage src={member.imageUrl} fallback={member.name} square />
+                <p className="mt-2 truncate text-[10px] font-semibold">
+                  {member.name}
+                </p>
+                <p className="truncate text-[9px]" style={{ color: colors.mutedColor }}>
+                  {member.role}
+                </p>
+              </div>
+            ))
+          ) : (
+            <PreviewEmpty text="No visible team members yet." colors={colors} />
+          )}
+        </div>
+      </PreviewSectionShell>
+    );
+  }
+
+  if (section === "events") {
+    return (
+      <PreviewSectionShell
+        eyebrow={locale === "nl" ? "Agenda" : "Agenda"}
+        title={labels.events}
+        colors={colors}
+        headingStyle={headingStyle}
+      >
+        <div className="grid grid-cols-2 gap-2">
+          {previewContent.events.length ? (
+            previewContent.events.map((event, index) => (
+              <div
+                key={`${event.title}-${index}`}
+                className="overflow-hidden rounded-xl"
+                style={{ backgroundColor: colors.surfaceColor }}
+              >
+                <PreviewImage src={event.imageUrl} fallback={event.title} />
+                <p className="truncate p-2 text-[10px] font-semibold">
+                  {event.title}
+                </p>
+              </div>
+            ))
+          ) : (
+            <PreviewEmpty text="No published events yet." colors={colors} />
+          )}
+        </div>
+      </PreviewSectionShell>
+    );
+  }
+
+  if (section === "partners") {
+    return (
+      <PreviewSectionShell
+        eyebrow={labels.partners}
+        title={labels.partners}
+        colors={colors}
+        headingStyle={headingStyle}
+      >
+        <div className="grid grid-cols-3 gap-2">
+          {previewContent.partners.length ? (
+            previewContent.partners.map((partner, index) => (
+              <div
+                key={`${partner.name}-${index}`}
+                className="grid min-h-16 place-items-center rounded-xl p-2 text-center text-[9px] font-semibold"
+                style={{ backgroundColor: colors.surfaceColor }}
+              >
+                {partner.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={partner.imageUrl}
+                    alt={partner.name}
+                    className="max-h-10 max-w-full object-contain"
+                  />
+                ) : (
+                  partner.name
+                )}
+              </div>
+            ))
+          ) : (
+            <PreviewEmpty text="No visible partners yet." colors={colors} />
+          )}
+        </div>
+      </PreviewSectionShell>
+    );
+  }
+
+  const enabledSocials = Object.entries(socialLinks).filter(([, href]) => href);
+  return (
+    <PreviewSectionShell
+      eyebrow={locale === "nl" ? "Contact" : "Contact"}
+      title={copy.contactTitle[locale]}
+      colors={colors}
+      headingStyle={headingStyle}
+    >
+      <div className="grid gap-3">
+        <div style={bodyStyle}>
+          <MarkdownContent
+            headingOffset={3}
+            className="markdown-preview-compact leading-relaxed"
+          >
+            {copy.contactText[locale]}
+          </MarkdownContent>
+        </div>
+        <p className="break-all text-xs font-semibold" style={{ color: colors.primaryColor }}>
+          {contactEmail}
+        </p>
+        {enabledSocials.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {enabledSocials.map(([key]) => (
+              <span
+                key={key}
+                className="rounded-full px-2 py-1 text-[9px] font-semibold"
+                style={{ backgroundColor: colors.surfaceColor }}
+              >
+                {key.replace("Url", "")}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </PreviewSectionShell>
+  );
+}
+
+function PreviewSectionShell({
+  eyebrow,
+  title,
+  colors,
+  headingStyle,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  colors: EditorInitial["colors"];
+  headingStyle: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className="border-t border-black/5 p-5"
+      style={{ backgroundColor: colors.backgroundColor, color: colors.textColor }}
+    >
+      <PreviewEyebrow color={colors.primaryColor}>{eyebrow}</PreviewEyebrow>
+      <h3 className="mb-3 mt-1 font-semibold" style={headingStyle}>
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function PreviewEyebrow({
+  color,
+  children,
+}: {
+  color: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <p
+      className="text-[9px] font-semibold uppercase tracking-[0.16em]"
+      style={{ color }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function PreviewImage({
+  src,
+  fallback,
+  square = false,
+}: {
+  src: string | null;
+  fallback: string;
+  square?: boolean;
+}) {
+  return (
+    <div
+      className={`grid place-items-center overflow-hidden bg-black/5 text-xs font-semibold ${
+        square ? "aspect-square rounded-lg" : "aspect-[16/9]"
+      }`}
+    >
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" className="h-full w-full object-cover" />
+      ) : (
+        fallback.slice(0, 1)
+      )}
+    </div>
+  );
+}
+
+function PreviewEmpty({
+  text,
+  colors,
+}: {
+  text: string;
+  colors: EditorInitial["colors"];
+}) {
+  return (
+    <p
+      className="col-span-full rounded-xl p-3 text-[10px]"
+      style={{ backgroundColor: colors.surfaceColor, color: colors.mutedColor }}
+    >
+      {text}
+    </p>
   );
 }
 
@@ -1204,7 +1704,7 @@ function ScaleField({
         name={name}
         type="range"
         min="0.8"
-        max="1.3"
+        max="1.5"
         step="0.05"
         value={value}
         className="mt-4 w-full accent-[#006d77]"

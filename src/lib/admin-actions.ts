@@ -479,21 +479,29 @@ export async function updateSettings(formData: FormData) {
       formData,
       "bodyFontScale",
       previousTheme?.bodyFontScale ?? 1,
+      0.8,
+      1.5,
     ),
     headingFontScale: clampedFloat(
       formData,
       "headingFontScale",
       previousTheme?.headingFontScale ?? 1,
+      0.8,
+      1.5,
     ),
     heroTitleFontScale: clampedFloat(
       formData,
       "heroTitleFontScale",
       previousTheme?.heroTitleFontScale ?? 1,
+      0.8,
+      1.5,
     ),
     heroBodyFontScale: clampedFloat(
       formData,
       "heroBodyFontScale",
       previousTheme?.heroBodyFontScale ?? 1,
+      0.8,
+      1.5,
     ),
   };
 
@@ -1114,34 +1122,69 @@ export async function updatePartnerOrder(orderedIds: string[]) {
 
 type SiteSectionKey = "about" | "team" | "events" | "contact" | "partners";
 
-type NavigationItemInput =
-  | {
-      type: "section";
-      key: SiteSectionKey;
-      isVisible: boolean;
-      showInNavigation: boolean;
-    }
-  | {
-      type: "page";
-      id: string;
-      showInNavigation: boolean;
-    };
+type HomepageSectionInput = {
+  key: SiteSectionKey;
+  isVisible: boolean;
+};
 
-export async function updateNavigation(items: NavigationItemInput[]) {
+type HeaderNavigationItemInput =
+  | { type: "section"; key: SiteSectionKey; showInNavigation: boolean }
+  | { type: "page"; id: string; showInNavigation: boolean };
+
+const siteSectionKeys = new Set<SiteSectionKey>([
+  "about",
+  "team",
+  "events",
+  "contact",
+  "partners",
+]);
+
+export async function updateHomepageSections(items: HomepageSectionInput[]) {
   await requireAdmin();
-  const allowedKeys = new Set<SiteSectionKey>([
-    "about",
-    "team",
-    "events",
-    "contact",
-    "partners",
-  ]);
+  const submittedKeys = new Set(items.map((item) => item.key));
+
+  if (
+    items.length !== siteSectionKeys.size ||
+    submittedKeys.size !== siteSectionKeys.size ||
+    items.some((item) => !siteSectionKeys.has(item.key))
+  ) {
+    throw new Error("The homepage order is incomplete. Refresh and try again.");
+  }
+
+  await prisma.$transaction(
+    items.map((item, index) =>
+      prisma.siteSection.upsert({
+        where: { key: item.key },
+        update: {
+          homepageOrder: index,
+          isVisible: Boolean(item.isVisible),
+          ...(!item.isVisible ? { showInNavigation: false } : {}),
+        },
+        create: {
+          key: item.key,
+          sortOrder: index,
+          homepageOrder: index,
+          isVisible: Boolean(item.isVisible),
+          showInNavigation: Boolean(item.isVisible),
+        },
+      }),
+    ),
+  );
+
+  revalidatePath("/");
+  revalidatePath("/admin/settings");
+}
+
+export async function updateHeaderNavigation(
+  items: HeaderNavigationItemInput[],
+) {
+  await requireAdmin();
   const sectionItems = items.filter(
-    (item): item is Extract<NavigationItemInput, { type: "section" }> =>
+    (item): item is Extract<HeaderNavigationItemInput, { type: "section" }> =>
       item.type === "section",
   );
   const pageItems = items.filter(
-    (item): item is Extract<NavigationItemInput, { type: "page" }> =>
+    (item): item is Extract<HeaderNavigationItemInput, { type: "page" }> =>
       item.type === "page",
   );
   const storedPages = await prisma.customPage.findMany({ select: { id: true } });
@@ -1151,9 +1194,9 @@ export async function updateNavigation(items: NavigationItemInput[]) {
 
   if (
     items.length !== sectionItems.length + pageItems.length ||
-    sectionItems.length !== allowedKeys.size ||
-    submittedSectionKeys.size !== allowedKeys.size ||
-    sectionItems.some((item) => !allowedKeys.has(item.key)) ||
+    sectionItems.length !== siteSectionKeys.size ||
+    submittedSectionKeys.size !== siteSectionKeys.size ||
+    sectionItems.some((item) => !siteSectionKeys.has(item.key)) ||
     pageItems.length !== storedPageIds.size ||
     submittedPageIds.size !== storedPageIds.size ||
     pageItems.some((item) => !storedPageIds.has(item.id))
@@ -1177,16 +1220,14 @@ export async function updateNavigation(items: NavigationItemInput[]) {
         where: { key: item.key },
         update: {
           sortOrder: index,
-          isVisible: Boolean(item.isVisible),
-          showInNavigation:
-            Boolean(item.isVisible) && Boolean(item.showInNavigation),
+          showInNavigation: Boolean(item.showInNavigation),
         },
         create: {
           key: item.key,
           sortOrder: index,
-          isVisible: Boolean(item.isVisible),
-          showInNavigation:
-            Boolean(item.isVisible) && Boolean(item.showInNavigation),
+          homepageOrder: index,
+          isVisible: true,
+          showInNavigation: Boolean(item.showInNavigation),
         },
       });
     }),

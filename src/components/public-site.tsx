@@ -77,7 +77,7 @@ export function PublicSite({
   );
   const visibleSections = [...data.sections]
     .filter((section) => section.isVisible)
-    .sort((left, right) => left.sortOrder - right.sortOrder);
+    .sort((left, right) => left.homepageOrder - right.homepageOrder);
   const heroButtonHref = settings.heroButtonUrl
     ? localizeHref(settings.heroButtonUrl, locale, settings.languageMode)
     : "";
