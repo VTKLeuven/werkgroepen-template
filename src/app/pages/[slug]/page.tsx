@@ -159,10 +159,16 @@ export default async function CustomPageRoute({
               src={cover}
               alt={title}
               mode={page.coverDisplayMode}
+              width={page.coverWidth}
               positionX={page.coverPositionX}
               positionY={page.coverPositionY}
               zoom={page.coverZoom}
-              className="mt-10 rounded-[2rem] shadow-xl shadow-black/10"
+              borderWidth={page.coverBorderWidth}
+              borderStyle={page.coverBorderStyle}
+              borderColor={page.coverBorderColor}
+              borderRadius={page.coverBorderRadius}
+              shadow={page.coverFrameShadow}
+              className="mt-10"
             />
           ) : null}
 

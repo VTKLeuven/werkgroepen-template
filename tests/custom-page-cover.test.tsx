@@ -10,6 +10,19 @@ test("custom-page cover modes preserve their distinct image behavior", () => {
   const fit = renderToStaticMarkup(
     <CustomPageCover src="/photo.png" alt="Photo" mode="fit" />,
   );
+  const flexible = renderToStaticMarkup(
+    <CustomPageCover
+      src="/photo.png"
+      alt="Photo"
+      mode="flexible"
+      width={68}
+      borderWidth={5}
+      borderStyle="dashed"
+      borderColor="#123456"
+      borderRadius={18}
+      shadow="soft"
+    />,
+  );
   const fill = renderToStaticMarkup(
     <CustomPageCover src="/photo.png" alt="Photo" mode="fill" />,
   );
@@ -27,6 +40,14 @@ test("custom-page cover modes preserve their distinct image behavior", () => {
   assert.match(full, /h-auto w-full/);
   assert.doesNotMatch(full, /aspect-\[16\/7\]/);
   assert.match(fit, /object-contain/);
+  assert.match(flexible, /width:68%/);
+  assert.match(flexible, /margin-inline:auto/);
+  assert.match(flexible, /border-width:5px/);
+  assert.match(flexible, /border-style:dashed/);
+  assert.match(flexible, /border-color:#123456/);
+  assert.match(flexible, /border-radius:18px/);
+  assert.match(flexible, /shadow-md/);
+  assert.doesNotMatch(flexible, /aspect-\[16\/7\]/);
   assert.match(fill, /object-cover/);
   assert.doesNotMatch(fill, /transform:/);
   assert.match(crop, /object-position:25% 70%/);

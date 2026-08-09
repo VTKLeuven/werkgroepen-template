@@ -85,7 +85,14 @@ function colorValue(formData: FormData, key: string, fallback: string) {
   return /^#[0-9a-f]{6}$/i.test(input) ? input.toLowerCase() : fallback;
 }
 
-type CoverDisplayModeValue = "full" | "fit" | "fill" | "crop";
+type CoverDisplayModeValue =
+  | "full"
+  | "flexible"
+  | "fit"
+  | "fill"
+  | "crop";
+type CoverBorderStyleValue = "solid" | "dashed" | "dotted" | "double";
+type CoverFrameShadowValue = "none" | "soft" | "strong";
 
 function coverDisplayModeValue(
   formData: FormData,
@@ -93,9 +100,32 @@ function coverDisplayModeValue(
 ): CoverDisplayModeValue {
   const input = value(formData, "coverDisplayMode");
   return input === "full" ||
+    input === "flexible" ||
     input === "fit" ||
     input === "crop" ||
     input === "fill"
+    ? input
+    : fallback;
+}
+
+function coverBorderStyleValue(
+  formData: FormData,
+  fallback: CoverBorderStyleValue = "solid",
+): CoverBorderStyleValue {
+  const input = value(formData, "coverBorderStyle");
+  return input === "dashed" || input === "dotted" || input === "double"
+    ? input
+    : input === "solid"
+      ? input
+      : fallback;
+}
+
+function coverFrameShadowValue(
+  formData: FormData,
+  fallback: CoverFrameShadowValue = "strong",
+): CoverFrameShadowValue {
+  const input = value(formData, "coverFrameShadow");
+  return input === "none" || input === "soft" || input === "strong"
     ? input
     : fallback;
 }
@@ -573,9 +603,15 @@ export async function saveCustomPage(formData: FormData) {
             contentNl: true,
             coverMediaId: true,
             coverDisplayMode: true,
+            coverWidth: true,
             coverPositionX: true,
             coverPositionY: true,
             coverZoom: true,
+            coverBorderWidth: true,
+            coverBorderStyle: true,
+            coverBorderColor: true,
+            coverBorderRadius: true,
+            coverFrameShadow: true,
             sortOrder: true,
           },
         })
@@ -647,6 +683,13 @@ export async function saveCustomPage(formData: FormData) {
       formData,
       previousPage?.coverDisplayMode ?? "fill",
     ),
+    coverWidth: clampedFloat(
+      formData,
+      "coverWidth",
+      previousPage?.coverWidth ?? 75,
+      25,
+      100,
+    ),
     coverPositionX: clampedFloat(
       formData,
       "coverPositionX",
@@ -667,6 +710,33 @@ export async function saveCustomPage(formData: FormData) {
       previousPage?.coverZoom ?? 1,
       1,
       3,
+    ),
+    coverBorderWidth: clampedFloat(
+      formData,
+      "coverBorderWidth",
+      previousPage?.coverBorderWidth ?? 0,
+      0,
+      16,
+    ),
+    coverBorderStyle: coverBorderStyleValue(
+      formData,
+      previousPage?.coverBorderStyle ?? "solid",
+    ),
+    coverBorderColor: colorValue(
+      formData,
+      "coverBorderColor",
+      previousPage?.coverBorderColor ?? "#231f20",
+    ),
+    coverBorderRadius: clampedFloat(
+      formData,
+      "coverBorderRadius",
+      previousPage?.coverBorderRadius ?? 32,
+      0,
+      64,
+    ),
+    coverFrameShadow: coverFrameShadowValue(
+      formData,
+      previousPage?.coverFrameShadow ?? "strong",
     ),
     sortOrder: previousPage?.sortOrder ?? nextNavigationOrder,
     isPublished: formData.get("isPublished") === "on",

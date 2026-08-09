@@ -118,8 +118,8 @@ The admin panel manages:
 - Theme colors and adjustable body, heading, and hero font sizes
 - Homepage section visibility and one global header order shared with custom pages
 - Standalone pages with localized titles, optional intro copy, cover photos,
-  live preview, full/fit/fill/manual-crop image layouts, draft/published state,
-  and header placement
+  live preview, full/flexible/fit/fill/manual-crop image layouts, configurable
+  borders and shadows, draft/published state, and header placement
 - Markdown editing and preview for page content, About, contact text, and event
   descriptions, including inline image uploads
 - Optional hero eyebrow and supporting copy (empty translations stay empty)

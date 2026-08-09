@@ -30,9 +30,23 @@ enum LogoMode {
 
 enum CoverDisplayMode {
   full
+  flexible
   fit
   fill
   crop
+}
+
+enum CoverBorderStyle {
+  solid
+  dashed
+  dotted
+  double
+}
+
+enum CoverFrameShadow {
+  none
+  soft
+  strong
 }
 
 enum SectionKey {
@@ -220,27 +234,33 @@ model Partner {
 }
 
 model CustomPage {
-  id               String           @id @default(cuid())
-  slug             String           @unique
-  titleEn          String           @default("")
-  titleNl          String           @default("")
-  eyebrowEn        String?
-  eyebrowNl        String?
-  supportingTextEn String?          @db.Text
-  supportingTextNl String?          @db.Text
-  contentEn        String           @default("") @db.Text
-  contentNl        String           @default("") @db.Text
-  coverMediaId     String?
-  coverMedia       MediaAsset?      @relation("CustomPageCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
-  coverDisplayMode CoverDisplayMode @default(fill)
-  coverPositionX   Float            @default(50)
-  coverPositionY   Float            @default(50)
-  coverZoom        Float            @default(1)
-  sortOrder        Int              @default(0)
-  isPublished      Boolean          @default(false)
-  showInNavigation Boolean          @default(false)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                String           @id @default(cuid())
+  slug              String           @unique
+  titleEn           String           @default("")
+  titleNl           String           @default("")
+  eyebrowEn         String?
+  eyebrowNl         String?
+  supportingTextEn  String?          @db.Text
+  supportingTextNl  String?          @db.Text
+  contentEn         String           @default("") @db.Text
+  contentNl         String           @default("") @db.Text
+  coverMediaId      String?
+  coverMedia        MediaAsset?      @relation("CustomPageCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  coverDisplayMode  CoverDisplayMode @default(fill)
+  coverWidth        Float            @default(75)
+  coverPositionX    Float            @default(50)
+  coverPositionY    Float            @default(50)
+  coverZoom         Float            @default(1)
+  coverBorderWidth  Float            @default(0)
+  coverBorderStyle  CoverBorderStyle @default(solid)
+  coverBorderColor  String           @default("#231f20")
+  coverBorderRadius Float            @default(32)
+  coverFrameShadow  CoverFrameShadow @default(strong)
+  sortOrder         Int              @default(0)
+  isPublished       Boolean          @default(false)
+  showInNavigation  Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([isPublished, showInNavigation, sortOrder])
 }

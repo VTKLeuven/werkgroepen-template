@@ -10,7 +10,9 @@ import {
 } from "@/components/admin-shell";
 import {
   CustomPageCover,
+  type CustomPageCoverBorderStyle,
   type CustomPageCoverMode,
+  type CustomPageCoverShadow,
 } from "@/components/custom-page-cover";
 import { MarkdownContent } from "@/components/markdown-content";
 import { MarkdownEditor } from "@/components/markdown-editor";
@@ -36,9 +38,15 @@ export type CustomPageEditorPage = {
   coverName: string | null;
   coverUrl: string | null;
   coverDisplayMode: CustomPageCoverMode;
+  coverWidth: number;
   coverPositionX: number;
   coverPositionY: number;
   coverZoom: number;
+  coverBorderWidth: number;
+  coverBorderStyle: CustomPageCoverBorderStyle;
+  coverBorderColor: string;
+  coverBorderRadius: number;
+  coverFrameShadow: CustomPageCoverShadow;
   isPublished: boolean;
   showInNavigation: boolean;
 };
@@ -70,7 +78,12 @@ const coverModes: {
   {
     value: "full",
     title: "Full image",
-    description: "Show the complete image at its natural aspect ratio.",
+    description: "Show the complete image at full content width.",
+  },
+  {
+    value: "flexible",
+    title: "Flexible size",
+    description: "Show the complete image at an adjustable width.",
   },
   {
     value: "fit",
@@ -119,9 +132,23 @@ export function CustomPageForm({
   const [coverMode, setCoverMode] = useState<CustomPageCoverMode>(
     page?.coverDisplayMode ?? "full",
   );
+  const [coverWidth, setCoverWidth] = useState(page?.coverWidth ?? 75);
   const [positionX, setPositionX] = useState(page?.coverPositionX ?? 50);
   const [positionY, setPositionY] = useState(page?.coverPositionY ?? 50);
   const [zoom, setZoom] = useState(page?.coverZoom ?? 1);
+  const [borderWidth, setBorderWidth] = useState(page?.coverBorderWidth ?? 0);
+  const [borderStyle, setBorderStyle] = useState<CustomPageCoverBorderStyle>(
+    page?.coverBorderStyle ?? "solid",
+  );
+  const [borderColor, setBorderColor] = useState(
+    page?.coverBorderColor ?? "#231f20",
+  );
+  const [borderRadius, setBorderRadius] = useState(
+    page?.coverBorderRadius ?? 32,
+  );
+  const [frameShadow, setFrameShadow] = useState<CustomPageCoverShadow>(
+    page?.coverFrameShadow ?? "strong",
+  );
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const dragStart = useRef<{
     clientX: number;
@@ -278,6 +305,30 @@ export function CustomPageForm({
             </div>
           </fieldset>
 
+          {coverMode === "flexible" ? (
+            <label className="mt-5 block text-sm font-semibold">
+              <span className="flex items-center justify-between gap-3">
+                Image size
+                <output>{Math.round(coverWidth)}%</output>
+              </span>
+              <input
+                name="coverWidth"
+                type="range"
+                min="25"
+                max="100"
+                step="1"
+                value={coverWidth}
+                onChange={(event) => setCoverWidth(Number(event.target.value))}
+                className="mt-2 w-full accent-[#006d77]"
+              />
+              <span className="mt-1 block text-xs font-normal leading-5 text-[#6f6860]">
+                The complete image and its frame keep their natural aspect ratio.
+              </span>
+            </label>
+          ) : (
+            <input type="hidden" name="coverWidth" value={coverWidth} />
+          )}
+
           {coverMode === "crop" ? (
             <div className="mt-5">
               <label className="block text-sm font-semibold">
@@ -330,6 +381,98 @@ export function CustomPageForm({
             <input type="hidden" name="coverZoom" value={zoom} />
           )}
 
+          <fieldset className="mt-6 border-t border-black/10 pt-5">
+            <legend className="px-1 text-sm font-semibold">Frame style</legend>
+            <div className="mt-2 grid gap-4 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-[#3a352f]">
+                <span className="flex items-center justify-between gap-2">
+                  Border thickness
+                  <output>{Math.round(borderWidth)}px</output>
+                </span>
+                <input
+                  name="coverBorderWidth"
+                  type="range"
+                  min="0"
+                  max="16"
+                  step="1"
+                  value={borderWidth}
+                  onChange={(event) =>
+                    setBorderWidth(Number(event.target.value))
+                  }
+                  className="mt-2 block w-full accent-[#006d77]"
+                />
+              </label>
+              <label className="text-xs font-semibold text-[#3a352f]">
+                <span className="flex items-center justify-between gap-2">
+                  Corner radius
+                  <output>{Math.round(borderRadius)}px</output>
+                </span>
+                <input
+                  name="coverBorderRadius"
+                  type="range"
+                  min="0"
+                  max="64"
+                  step="2"
+                  value={borderRadius}
+                  onChange={(event) =>
+                    setBorderRadius(Number(event.target.value))
+                  }
+                  className="mt-2 block w-full accent-[#006d77]"
+                />
+              </label>
+              <Field label="Border pattern">
+                <select
+                  name="coverBorderStyle"
+                  value={borderStyle}
+                  onChange={(event) =>
+                    setBorderStyle(
+                      event.target.value as CustomPageCoverBorderStyle,
+                    )
+                  }
+                  className={inputClass}
+                >
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                  <option value="double">Double</option>
+                </select>
+              </Field>
+              <Field label="Shadow">
+                <select
+                  name="coverFrameShadow"
+                  value={frameShadow}
+                  onChange={(event) =>
+                    setFrameShadow(event.target.value as CustomPageCoverShadow)
+                  }
+                  className={inputClass}
+                >
+                  <option value="none">None</option>
+                  <option value="soft">Soft</option>
+                  <option value="strong">Strong</option>
+                </select>
+              </Field>
+              <Field label="Border color">
+                <span className="flex min-w-0 items-center gap-2 rounded-2xl border border-black/10 bg-white p-2">
+                  <input
+                    type="color"
+                    value={borderColor}
+                    aria-label="Cover border color picker"
+                    onChange={(event) => setBorderColor(event.target.value)}
+                    className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border-0 bg-transparent"
+                  />
+                  <input
+                    name="coverBorderColor"
+                    value={borderColor}
+                    pattern="#[0-9a-fA-F]{6}"
+                    aria-label="Cover border hex value"
+                    onChange={(event) => setBorderColor(event.target.value)}
+                    className="min-w-0 flex-1 bg-transparent px-1 font-mono text-xs font-medium uppercase outline-none"
+                  />
+                </span>
+              </Field>
+            </div>
+          </fieldset>
+
           <div
             title={
               coverMode === "crop" && visibleCoverUrl
@@ -353,7 +496,7 @@ export function CustomPageForm({
             onPointerCancel={() => {
               dragStart.current = null;
             }}
-            className={`mt-4 overflow-hidden rounded-2xl border border-black/10 ${
+            className={`mt-4 ${
               coverMode === "crop" && visibleCoverUrl
                 ? "cursor-grab touch-none active:cursor-grabbing"
                 : ""
@@ -364,12 +507,18 @@ export function CustomPageForm({
                 src={visibleCoverUrl}
                 alt=""
                 mode={coverMode}
+                width={coverWidth}
                 positionX={positionX}
                 positionY={positionY}
                 zoom={zoom}
+                borderWidth={borderWidth}
+                borderStyle={borderStyle}
+                borderColor={borderColor}
+                borderRadius={borderRadius}
+                shadow={frameShadow}
               />
             ) : (
-              <div className="grid aspect-[16/7] place-items-center bg-[#f5f1e8] text-[#9b948a]">
+              <div className="grid aspect-[16/7] place-items-center rounded-2xl border border-black/10 bg-[#f5f1e8] text-[#9b948a]">
                 <span className="flex items-center gap-2 text-xs font-semibold">
                   <ImageIcon size={18} />
                   Select an image to preview it
@@ -549,10 +698,16 @@ export function CustomPageForm({
                   src={visibleCoverUrl}
                   alt={previewTitle}
                   mode={coverMode}
+                  width={coverWidth}
                   positionX={positionX}
                   positionY={positionY}
                   zoom={zoom}
-                  className="mt-6 rounded-xl shadow-md shadow-black/10"
+                  borderWidth={borderWidth}
+                  borderStyle={borderStyle}
+                  borderColor={borderColor}
+                  borderRadius={borderRadius}
+                  shadow={frameShadow}
+                  className="mt-6"
                 />
               ) : null}
               {copy.content[previewLocale] ? (
