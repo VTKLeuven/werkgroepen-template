@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FilePlus2, ImageIcon, Monitor, Smartphone } from "lucide-react";
+import { useFormStatus } from "react-dom";
+import { FilePlus2, Monitor, Smartphone } from "lucide-react";
 import {
   Field,
   buttonClass,
@@ -14,6 +15,10 @@ import {
   type CustomPageCoverMode,
   type CustomPageCoverShadow,
 } from "@/components/custom-page-cover";
+import {
+  CoverSettingsEditor,
+  type CoverSettings,
+} from "@/components/cover-settings-editor";
 import { MarkdownContent } from "@/components/markdown-content";
 import { MarkdownEditor } from "@/components/markdown-editor";
 import type { AdminLanguageConfig } from "@/components/admin-localized-field";
@@ -47,6 +52,8 @@ export type CustomPageEditorPage = {
   coverBorderColor: string;
   coverBorderRadius: number;
   coverFrameShadow: CustomPageCoverShadow;
+  coverPlacement: "above" | "left" | "right";
+  coverSideWidth: number;
   isPublished: boolean;
   showInNavigation: boolean;
 };
@@ -69,38 +76,6 @@ export type CustomPagePreviewConfig = {
     heading: number;
   };
 };
-
-const coverModes: {
-  value: CustomPageCoverMode;
-  title: string;
-  description: string;
-}[] = [
-  {
-    value: "full",
-    title: "Full image",
-    description: "Show the complete image at full content width.",
-  },
-  {
-    value: "flexible",
-    title: "Flexible size",
-    description: "Show the complete image at an adjustable width.",
-  },
-  {
-    value: "fit",
-    title: "Fit",
-    description: "Keep the whole image visible inside a wide frame.",
-  },
-  {
-    value: "fill",
-    title: "Fill",
-    description: "Fill the wide frame with an automatic centered crop.",
-  },
-  {
-    value: "crop",
-    title: "Crop & position",
-    description: "Zoom and drag the image to choose the visible portion.",
-  },
-];
 
 export function CustomPageForm({
   page,
@@ -129,33 +104,25 @@ export function CustomPageForm({
   });
   const [coverUrl, setCoverUrl] = useState(page?.coverUrl ?? null);
   const [removeCover, setRemoveCover] = useState(false);
-  const [coverMode, setCoverMode] = useState<CustomPageCoverMode>(
-    page?.coverDisplayMode ?? "full",
+  const [coverSettings, setCoverSettings] = useState<CoverSettings>({
+    mode: page?.coverDisplayMode ?? "full",
+    width: page?.coverWidth ?? 75,
+    positionX: page?.coverPositionX ?? 50,
+    positionY: page?.coverPositionY ?? 50,
+    zoom: page?.coverZoom ?? 1,
+    borderWidth: page?.coverBorderWidth ?? 0,
+    borderStyle: page?.coverBorderStyle ?? "solid",
+    borderColor: page?.coverBorderColor ?? "#231f20",
+    borderRadius: page?.coverBorderRadius ?? 32,
+    shadow: page?.coverFrameShadow ?? "strong",
+  });
+  const [coverPlacement, setCoverPlacement] = useState<"above" | "left" | "right">(
+    page?.coverPlacement ?? "above",
   );
-  const [coverWidth, setCoverWidth] = useState(page?.coverWidth ?? 75);
-  const [positionX, setPositionX] = useState(page?.coverPositionX ?? 50);
-  const [positionY, setPositionY] = useState(page?.coverPositionY ?? 50);
-  const [zoom, setZoom] = useState(page?.coverZoom ?? 1);
-  const [borderWidth, setBorderWidth] = useState(page?.coverBorderWidth ?? 0);
-  const [borderStyle, setBorderStyle] = useState<CustomPageCoverBorderStyle>(
-    page?.coverBorderStyle ?? "solid",
-  );
-  const [borderColor, setBorderColor] = useState(
-    page?.coverBorderColor ?? "#231f20",
-  );
-  const [borderRadius, setBorderRadius] = useState(
-    page?.coverBorderRadius ?? 32,
-  );
-  const [frameShadow, setFrameShadow] = useState<CustomPageCoverShadow>(
-    page?.coverFrameShadow ?? "strong",
+  const [coverSideWidth, setCoverSideWidth] = useState(
+    page?.coverSideWidth ?? 42,
   );
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
-  const dragStart = useRef<{
-    clientX: number;
-    clientY: number;
-    positionX: number;
-    positionY: number;
-  } | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(
@@ -178,17 +145,20 @@ export function CustomPageForm({
     setCoverUrl(URL.createObjectURL(file));
   }
 
-  function moveCrop(event: React.PointerEvent<HTMLDivElement>) {
-    if (!dragStart.current || coverMode !== "crop") return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const deltaX = ((event.clientX - dragStart.current.clientX) / bounds.width) * 100;
-    const deltaY = ((event.clientY - dragStart.current.clientY) / bounds.height) * 100;
-    setPositionX(clamp(dragStart.current.positionX - deltaX / zoom, 0, 100));
-    setPositionY(clamp(dragStart.current.positionY - deltaY / zoom, 0, 100));
-  }
-
   const visibleCoverUrl = removeCover ? null : coverUrl;
   const previewTitle = copy.title[previewLocale] || "Your page title";
+  const {
+    mode: coverMode,
+    width: coverWidth,
+    positionX,
+    positionY,
+    zoom,
+    borderWidth,
+    borderStyle,
+    borderColor,
+    borderRadius,
+    shadow: frameShadow,
+  } = coverSettings;
 
   return (
     <form
@@ -196,8 +166,6 @@ export function CustomPageForm({
       className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]"
     >
       {page ? <input type="hidden" name="id" value={page.id} /> : null}
-      <input type="hidden" name="coverPositionX" value={positionX} />
-      <input type="hidden" name="coverPositionY" value={positionY} />
 
       <div className="grid min-w-0 gap-5">
         <LocalizedPageField
@@ -270,261 +238,74 @@ export function CustomPageForm({
             </label>
           ) : null}
 
-          <fieldset className="mt-5">
-            <legend className="text-sm font-semibold">Image layout</legend>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {coverModes.map((mode) => (
+          <fieldset className="mt-5 border-b border-black/10 pb-5">
+            <legend className="text-sm font-semibold">Page placement</legend>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  ["above", "Above content"],
+                  ["left", "Left of content"],
+                  ["right", "Right of content"],
+                ] as const
+              ).map(([placement, label]) => (
                 <label
-                  key={mode.value}
-                  className={`cursor-pointer rounded-2xl border p-3 transition ${
-                    coverMode === mode.value
+                  key={placement}
+                  className={`cursor-pointer rounded-2xl border p-3 text-xs font-semibold transition ${
+                    coverPlacement === placement
                       ? "border-[#006d77] bg-[#006d77]/5 ring-2 ring-[#006d77]/10"
                       : "border-black/10 hover:border-black/20"
                   }`}
                 >
-                  <span className="flex items-start gap-2">
+                  <span className="flex items-center gap-2">
                     <input
-                      name="coverDisplayMode"
+                      name="coverPlacement"
                       type="radio"
-                      value={mode.value}
-                      checked={coverMode === mode.value}
-                      onChange={() => setCoverMode(mode.value)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#006d77]"
+                      value={placement}
+                      checked={coverPlacement === placement}
+                      onChange={() => setCoverPlacement(placement)}
+                      className="h-4 w-4 accent-[#006d77]"
                     />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-semibold">
-                        {mode.title}
-                      </span>
-                      <span className="mt-1 block text-[11px] leading-4 text-[#6f6860]">
-                        {mode.description}
-                      </span>
-                    </span>
+                    {label}
                   </span>
                 </label>
               ))}
             </div>
-          </fieldset>
-
-          {coverMode === "flexible" ? (
-            <label className="mt-5 block text-sm font-semibold">
-              <span className="flex items-center justify-between gap-3">
-                Image size
-                <output>{Math.round(coverWidth)}%</output>
-              </span>
-              <input
-                name="coverWidth"
-                type="range"
-                min="25"
-                max="100"
-                step="1"
-                value={coverWidth}
-                onChange={(event) => setCoverWidth(Number(event.target.value))}
-                className="mt-2 w-full accent-[#006d77]"
-              />
-              <span className="mt-1 block text-xs font-normal leading-5 text-[#6f6860]">
-                The complete image and its frame keep their natural aspect ratio.
-              </span>
-            </label>
-          ) : (
-            <input type="hidden" name="coverWidth" value={coverWidth} />
-          )}
-
-          {coverMode === "crop" ? (
-            <div className="mt-5">
-              <label className="block text-sm font-semibold">
-                <span className="flex items-center justify-between gap-3">
-                  Zoom
-                  <output>{Math.round(zoom * 100)}%</output>
-                </span>
-                <input
-                  name="coverZoom"
-                  type="range"
-                  min="1"
-                  max="3"
-                  step="0.05"
-                  value={zoom}
-                  onChange={(event) => setZoom(Number(event.target.value))}
-                  className="mt-2 w-full accent-[#006d77]"
-                />
-              </label>
-              <p className="mt-1 text-xs text-[#6f6860]">
-                Drag the image below to position the crop.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="text-xs font-semibold text-[#3a352f]">
-                  Horizontal position
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={positionX}
-                    onChange={(event) => setPositionX(Number(event.target.value))}
-                    className="mt-1 block w-full accent-[#006d77]"
-                  />
-                </label>
-                <label className="text-xs font-semibold text-[#3a352f]">
-                  Vertical position
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={positionY}
-                    onChange={(event) => setPositionY(Number(event.target.value))}
-                    className="mt-1 block w-full accent-[#006d77]"
-                  />
-                </label>
-              </div>
-            </div>
-          ) : (
-            <input type="hidden" name="coverZoom" value={zoom} />
-          )}
-
-          <fieldset className="mt-6 border-t border-black/10 pt-5">
-            <legend className="px-1 text-sm font-semibold">Frame style</legend>
-            <div className="mt-2 grid gap-4 sm:grid-cols-2">
-              <label className="text-xs font-semibold text-[#3a352f]">
+            {coverPlacement !== "above" ? (
+              <label className="mt-4 block text-xs font-semibold text-[#3a352f]">
                 <span className="flex items-center justify-between gap-2">
-                  Border thickness
-                  <output>{Math.round(borderWidth)}px</output>
+                  Image column width
+                  <output>{Math.round(coverSideWidth)}%</output>
                 </span>
                 <input
-                  name="coverBorderWidth"
+                  name="coverSideWidth"
                   type="range"
-                  min="0"
-                  max="16"
+                  min="30"
+                  max="60"
                   step="1"
-                  value={borderWidth}
+                  value={coverSideWidth}
                   onChange={(event) =>
-                    setBorderWidth(Number(event.target.value))
+                    setCoverSideWidth(Number(event.target.value))
                   }
                   className="mt-2 block w-full accent-[#006d77]"
                 />
               </label>
-              <label className="text-xs font-semibold text-[#3a352f]">
-                <span className="flex items-center justify-between gap-2">
-                  Corner radius
-                  <output>{Math.round(borderRadius)}px</output>
-                </span>
-                <input
-                  name="coverBorderRadius"
-                  type="range"
-                  min="0"
-                  max="64"
-                  step="2"
-                  value={borderRadius}
-                  onChange={(event) =>
-                    setBorderRadius(Number(event.target.value))
-                  }
-                  className="mt-2 block w-full accent-[#006d77]"
-                />
-              </label>
-              <Field label="Border pattern">
-                <select
-                  name="coverBorderStyle"
-                  value={borderStyle}
-                  onChange={(event) =>
-                    setBorderStyle(
-                      event.target.value as CustomPageCoverBorderStyle,
-                    )
-                  }
-                  className={inputClass}
-                >
-                  <option value="solid">Solid</option>
-                  <option value="dashed">Dashed</option>
-                  <option value="dotted">Dotted</option>
-                  <option value="double">Double</option>
-                </select>
-              </Field>
-              <Field label="Shadow">
-                <select
-                  name="coverFrameShadow"
-                  value={frameShadow}
-                  onChange={(event) =>
-                    setFrameShadow(event.target.value as CustomPageCoverShadow)
-                  }
-                  className={inputClass}
-                >
-                  <option value="none">None</option>
-                  <option value="soft">Soft</option>
-                  <option value="strong">Strong</option>
-                </select>
-              </Field>
-              <Field label="Border color">
-                <span className="flex min-w-0 items-center gap-2 rounded-2xl border border-black/10 bg-white p-2">
-                  <input
-                    type="color"
-                    value={borderColor}
-                    aria-label="Cover border color picker"
-                    onChange={(event) => setBorderColor(event.target.value)}
-                    className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border-0 bg-transparent"
-                  />
-                  <input
-                    name="coverBorderColor"
-                    value={borderColor}
-                    pattern="#[0-9a-fA-F]{6}"
-                    aria-label="Cover border hex value"
-                    onChange={(event) => setBorderColor(event.target.value)}
-                    className="min-w-0 flex-1 bg-transparent px-1 font-mono text-xs font-medium uppercase outline-none"
-                  />
-                </span>
-              </Field>
-            </div>
+            ) : (
+              <input
+                type="hidden"
+                name="coverSideWidth"
+                value={coverSideWidth}
+              />
+            )}
           </fieldset>
 
-          <div
-            title={
-              coverMode === "crop" && visibleCoverUrl
-                ? "Drag to position the cover crop"
-                : undefined
-            }
-            onPointerDown={(event) => {
-              if (coverMode !== "crop" || !visibleCoverUrl) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              dragStart.current = {
-                clientX: event.clientX,
-                clientY: event.clientY,
-                positionX,
-                positionY,
-              };
-            }}
-            onPointerMove={moveCrop}
-            onPointerUp={() => {
-              dragStart.current = null;
-            }}
-            onPointerCancel={() => {
-              dragStart.current = null;
-            }}
-            className={`mt-4 ${
-              coverMode === "crop" && visibleCoverUrl
-                ? "cursor-grab touch-none active:cursor-grabbing"
-                : ""
-            }`}
-          >
-            {visibleCoverUrl ? (
-              <CustomPageCover
-                src={visibleCoverUrl}
-                alt=""
-                mode={coverMode}
-                width={coverWidth}
-                positionX={positionX}
-                positionY={positionY}
-                zoom={zoom}
-                borderWidth={borderWidth}
-                borderStyle={borderStyle}
-                borderColor={borderColor}
-                borderRadius={borderRadius}
-                shadow={frameShadow}
-              />
-            ) : (
-              <div className="grid aspect-[16/7] place-items-center rounded-2xl border border-black/10 bg-[#f5f1e8] text-[#9b948a]">
-                <span className="flex items-center gap-2 text-xs font-semibold">
-                  <ImageIcon size={18} />
-                  Select an image to preview it
-                </span>
-              </div>
-            )}
+          <div className="mt-5">
+            <CoverSettingsEditor
+              namePrefix="cover"
+              value={coverSettings}
+              onChange={setCoverSettings}
+              previewUrl={visibleCoverUrl}
+              frameShape={coverPlacement === "above" ? "wide" : "side"}
+            />
           </div>
         </div>
 
@@ -579,10 +360,7 @@ export function CustomPageForm({
             Show in website header
           </label>
         </div>
-        <button className={`${buttonClass} w-fit gap-2`}>
-          <FilePlus2 size={16} />
-          {page ? "Save page" : "Add page"}
-        </button>
+        <SavePageButton isExisting={Boolean(page)} />
       </div>
 
       <aside className="min-w-0 xl:sticky xl:top-6">
@@ -693,34 +471,76 @@ export function CustomPageForm({
                   {copy.supportingText[previewLocale]}
                 </p>
               ) : null}
-              {visibleCoverUrl ? (
-                <CustomPageCover
-                  src={visibleCoverUrl}
-                  alt={previewTitle}
-                  mode={coverMode}
-                  width={coverWidth}
-                  positionX={positionX}
-                  positionY={positionY}
-                  zoom={zoom}
-                  borderWidth={borderWidth}
-                  borderStyle={borderStyle}
-                  borderColor={borderColor}
-                  borderRadius={borderRadius}
-                  shadow={frameShadow}
-                  className="mt-6"
-                />
-              ) : null}
-              {copy.content[previewLocale] ? (
-                <MarkdownContent
-                  headingOffset={1}
-                  className="markdown-preview-page mt-7"
+              {visibleCoverUrl && coverPlacement !== "above" ? (
+                <div
+                  className={`mt-6 grid gap-5 ${
+                    device === "desktop" ? "items-start" : ""
+                  }`}
+                  style={
+                    device === "desktop"
+                      ? {
+                          gridTemplateColumns:
+                            coverPlacement === "right"
+                              ? `${100 - coverSideWidth}fr ${coverSideWidth}fr`
+                              : `${coverSideWidth}fr ${100 - coverSideWidth}fr`,
+                        }
+                      : undefined
+                  }
                 >
-                  {copy.content[previewLocale]}
-                </MarkdownContent>
+                  <div
+                    className={
+                      coverPlacement === "right" && device === "desktop"
+                        ? "order-2"
+                        : undefined
+                    }
+                  >
+                    <CustomPageCover
+                      src={visibleCoverUrl}
+                      alt={previewTitle}
+                      mode={coverMode}
+                      width={coverWidth}
+                      positionX={positionX}
+                      positionY={positionY}
+                      zoom={zoom}
+                      borderWidth={borderWidth}
+                      borderStyle={borderStyle}
+                      borderColor={borderColor}
+                      borderRadius={borderRadius}
+                      shadow={frameShadow}
+                      frameShape="side"
+                    />
+                  </div>
+                  <PreviewPageContent
+                    content={copy.content[previewLocale]}
+                    mutedColor={previewConfig.colors.muted}
+                  />
+                </div>
               ) : (
-                <p className="mt-7 italic" style={{ color: previewConfig.colors.muted }}>
-                  Page content will appear here.
-                </p>
+                <>
+                  {visibleCoverUrl ? (
+                    <CustomPageCover
+                      src={visibleCoverUrl}
+                      alt={previewTitle}
+                      mode={coverMode}
+                      width={coverWidth}
+                      positionX={positionX}
+                      positionY={positionY}
+                      zoom={zoom}
+                      borderWidth={borderWidth}
+                      borderStyle={borderStyle}
+                      borderColor={borderColor}
+                      borderRadius={borderRadius}
+                      shadow={frameShadow}
+                      className="mt-6"
+                    />
+                  ) : null}
+                  <div className="mt-7">
+                    <PreviewPageContent
+                      content={copy.content[previewLocale]}
+                      mutedColor={previewConfig.colors.muted}
+                    />
+                  </div>
+                </>
               )}
             </article>
           </div>
@@ -895,6 +715,35 @@ function PreviewButton({
   );
 }
 
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value));
+function PreviewPageContent({
+  content,
+  mutedColor,
+}: {
+  content: string;
+  mutedColor: string;
+}) {
+  return content ? (
+    <MarkdownContent headingOffset={1} className="markdown-preview-page">
+      {content}
+    </MarkdownContent>
+  ) : (
+    <p className="italic" style={{ color: mutedColor }}>
+      Page content will appear here.
+    </p>
+  );
+}
+
+function SavePageButton({ isExisting }: { isExisting: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className={`${buttonClass} w-fit gap-2 disabled:cursor-wait disabled:opacity-65`}
+    >
+      <FilePlus2 size={16} />
+      {pending ? "Saving…" : isExisting ? "Save page" : "Add page"}
+    </button>
+  );
 }

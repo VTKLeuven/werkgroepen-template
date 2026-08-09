@@ -93,12 +93,14 @@ type CoverDisplayModeValue =
   | "crop";
 type CoverBorderStyleValue = "solid" | "dashed" | "dotted" | "double";
 type CoverFrameShadowValue = "none" | "soft" | "strong";
+type CoverPlacementValue = "above" | "left" | "right";
 
 function coverDisplayModeValue(
   formData: FormData,
   fallback: CoverDisplayModeValue = "fill",
+  key = "coverDisplayMode",
 ): CoverDisplayModeValue {
-  const input = value(formData, "coverDisplayMode");
+  const input = value(formData, key);
   return input === "full" ||
     input === "flexible" ||
     input === "fit" ||
@@ -111,8 +113,9 @@ function coverDisplayModeValue(
 function coverBorderStyleValue(
   formData: FormData,
   fallback: CoverBorderStyleValue = "solid",
+  key = "coverBorderStyle",
 ): CoverBorderStyleValue {
-  const input = value(formData, "coverBorderStyle");
+  const input = value(formData, key);
   return input === "dashed" || input === "dotted" || input === "double"
     ? input
     : input === "solid"
@@ -123,9 +126,20 @@ function coverBorderStyleValue(
 function coverFrameShadowValue(
   formData: FormData,
   fallback: CoverFrameShadowValue = "strong",
+  key = "coverFrameShadow",
 ): CoverFrameShadowValue {
-  const input = value(formData, "coverFrameShadow");
+  const input = value(formData, key);
   return input === "none" || input === "soft" || input === "strong"
+    ? input
+    : fallback;
+}
+
+function coverPlacementValue(
+  formData: FormData,
+  fallback: CoverPlacementValue = "above",
+): CoverPlacementValue {
+  const input = value(formData, "coverPlacement");
+  return input === "left" || input === "right" || input === "above"
     ? input
     : fallback;
 }
@@ -266,7 +280,7 @@ export async function updateSettings(formData: FormData) {
     throw new Error("The about text cannot be empty.");
   }
 
-  const [logo, favicon, hero] = await Promise.all([
+  const [logo, favicon, hero, aboutImage] = await Promise.all([
     saveUploadedImage(
       formData.get("logo") as File | null,
       `${publicSiteName} logo`,
@@ -278,6 +292,10 @@ export async function updateSettings(formData: FormData) {
     saveUploadedImage(
       formData.get("hero") as File | null,
       `${publicSiteName} hero`,
+    ),
+    saveUploadedImage(
+      formData.get("aboutImage") as File | null,
+      `${publicSiteName} about section`,
     ),
   ]);
 
@@ -310,6 +328,75 @@ export async function updateSettings(formData: FormData) {
     aboutText: canonical(contentLocale, aboutText),
     aboutTextEn: aboutText.en,
     aboutTextNl: aboutText.nl,
+    aboutCoverDisplayMode: coverDisplayModeValue(
+      formData,
+      previousSettings?.aboutCoverDisplayMode ?? "fill",
+      "aboutCoverDisplayMode",
+    ),
+    aboutCoverWidth: clampedFloat(
+      formData,
+      "aboutCoverWidth",
+      previousSettings?.aboutCoverWidth ?? 100,
+      25,
+      100,
+    ),
+    aboutCoverPositionX: clampedFloat(
+      formData,
+      "aboutCoverPositionX",
+      previousSettings?.aboutCoverPositionX ?? 50,
+      0,
+      100,
+    ),
+    aboutCoverPositionY: clampedFloat(
+      formData,
+      "aboutCoverPositionY",
+      previousSettings?.aboutCoverPositionY ?? 50,
+      0,
+      100,
+    ),
+    aboutCoverZoom: clampedFloat(
+      formData,
+      "aboutCoverZoom",
+      previousSettings?.aboutCoverZoom ?? 1,
+      1,
+      3,
+    ),
+    aboutCoverBorderWidth: clampedFloat(
+      formData,
+      "aboutCoverBorderWidth",
+      previousSettings?.aboutCoverBorderWidth ?? 0,
+      0,
+      16,
+    ),
+    aboutCoverBorderStyle: coverBorderStyleValue(
+      formData,
+      previousSettings?.aboutCoverBorderStyle ?? "solid",
+      "aboutCoverBorderStyle",
+    ),
+    aboutCoverBorderColor: colorValue(
+      formData,
+      "aboutCoverBorderColor",
+      previousSettings?.aboutCoverBorderColor ?? "#231f20",
+    ),
+    aboutCoverBorderRadius: clampedFloat(
+      formData,
+      "aboutCoverBorderRadius",
+      previousSettings?.aboutCoverBorderRadius ?? 32,
+      0,
+      64,
+    ),
+    aboutCoverFrameShadow: coverFrameShadowValue(
+      formData,
+      previousSettings?.aboutCoverFrameShadow ?? "strong",
+      "aboutCoverFrameShadow",
+    ),
+    aboutCoverColumnWidth: clampedFloat(
+      formData,
+      "aboutCoverColumnWidth",
+      previousSettings?.aboutCoverColumnWidth ?? 42,
+      30,
+      60,
+    ),
     contactTitle: canonical(contentLocale, contactTitle),
     contactTitleEn: contactTitle.en,
     contactTitleNl: contactTitle.nl,
@@ -332,6 +419,10 @@ export async function updateSettings(formData: FormData) {
       formData.get("removeHero") === "on"
         ? null
         : hero?.id ?? previousSettings?.heroMediaId ?? null,
+    aboutMediaId:
+      formData.get("removeAboutImage") === "on"
+        ? null
+        : aboutImage?.id ?? previousSettings?.aboutMediaId ?? null,
   };
 
   await prisma.siteSettings.upsert({
@@ -612,6 +703,8 @@ export async function saveCustomPage(formData: FormData) {
             coverBorderColor: true,
             coverBorderRadius: true,
             coverFrameShadow: true,
+            coverPlacement: true,
+            coverSideWidth: true,
             sortOrder: true,
           },
         })
@@ -738,6 +831,17 @@ export async function saveCustomPage(formData: FormData) {
       formData,
       previousPage?.coverFrameShadow ?? "strong",
     ),
+    coverPlacement: coverPlacementValue(
+      formData,
+      previousPage?.coverPlacement ?? "above",
+    ),
+    coverSideWidth: clampedFloat(
+      formData,
+      "coverSideWidth",
+      previousPage?.coverSideWidth ?? 42,
+      30,
+      60,
+    ),
     sortOrder: previousPage?.sortOrder ?? nextNavigationOrder,
     isPublished: formData.get("isPublished") === "on",
     showInNavigation: formData.get("showInNavigation") === "on",
@@ -747,12 +851,17 @@ export async function saveCustomPage(formData: FormData) {
         : cover?.id ?? previousPage?.coverMediaId ?? null,
   };
 
+  let savedPageId = id;
   for (let attempt = 0; ; attempt += 1) {
     try {
       if (id) {
         await prisma.customPage.update({ where: { id }, data });
       } else {
-        await prisma.customPage.create({ data });
+        const createdPage = await prisma.customPage.create({
+          data,
+          select: { id: true },
+        });
+        savedPageId = createdPage.id;
       }
       break;
     } catch (error) {
@@ -768,6 +877,7 @@ export async function saveCustomPage(formData: FormData) {
   if (previousPage?.slug && previousPage.slug !== slug) {
     revalidatePath(`/pages/${previousPage.slug}`);
   }
+  redirect(`/admin/pages?saved=${encodeURIComponent(savedPageId ?? "")}`);
 }
 
 export async function deleteCustomPage(formData: FormData) {

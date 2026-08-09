@@ -22,7 +22,12 @@ export async function getSiteData() {
     await Promise.all([
       prisma.siteSettings.findUnique({
         where: { id: "site" },
-        include: { logoMedia: true, faviconMedia: true, heroMedia: true },
+        include: {
+          logoMedia: true,
+          faviconMedia: true,
+          heroMedia: true,
+          aboutMedia: true,
+        },
       }),
       prisma.themeSettings.findUnique({ where: { id: "theme" } }),
       prisma.siteSection.findMany({
@@ -99,6 +104,8 @@ export const defaultSettings = {
   faviconMedia: null,
   heroMediaId: null,
   heroMedia: null,
+  aboutMediaId: null,
+  aboutMedia: null,
   heroEyebrow: "VTK subdivision",
   heroEyebrowEn: "VTK subdivision",
   heroEyebrowNl: "VTK werkgroep",
@@ -124,6 +131,17 @@ export const defaultSettings = {
     "We bring students together around study support, professional opportunities, and low-threshold activities. The result is a small community with enough room for ambition and enough warmth to feel at home.",
   aboutTextNl:
     "We brengen studenten samen rond studieondersteuning, professionele kansen en laagdrempelige activiteiten. Zo ontstaat een kleine community met ruimte voor ambitie en genoeg warmte om je thuis te voelen.",
+  aboutCoverDisplayMode: "fill" as const,
+  aboutCoverWidth: 100,
+  aboutCoverPositionX: 50,
+  aboutCoverPositionY: 50,
+  aboutCoverZoom: 1,
+  aboutCoverBorderWidth: 0,
+  aboutCoverBorderStyle: "solid" as const,
+  aboutCoverBorderColor: "#231f20",
+  aboutCoverBorderRadius: 32,
+  aboutCoverFrameShadow: "strong" as const,
+  aboutCoverColumnWidth: 42,
   contactTitle: "Contact us",
   contactTitleEn: "Contact us",
   contactTitleNl: "Contacteer ons",

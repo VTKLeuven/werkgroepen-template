@@ -109,6 +109,28 @@ export default async function CustomPageRoute({
     data.settings.siteNameNl,
     data.settings.siteName,
   );
+  const coverElement = cover ? (
+    <CustomPageCover
+      src={cover}
+      alt={title}
+      mode={page.coverDisplayMode}
+      width={page.coverWidth}
+      positionX={page.coverPositionX}
+      positionY={page.coverPositionY}
+      zoom={page.coverZoom}
+      borderWidth={page.coverBorderWidth}
+      borderStyle={page.coverBorderStyle}
+      borderColor={page.coverBorderColor}
+      borderRadius={page.coverBorderRadius}
+      shadow={page.coverFrameShadow}
+      frameShape={page.coverPlacement === "above" ? "wide" : "side"}
+    />
+  ) : null;
+  const contentElement = content ? (
+    <MarkdownContent className="site-page-content max-w-4xl">
+      {content}
+    </MarkdownContent>
+  ) : null;
 
   return (
     <main
@@ -154,29 +176,36 @@ export default async function CustomPageRoute({
             ) : null}
           </header>
 
-          {cover ? (
-            <CustomPageCover
-              src={cover}
-              alt={title}
-              mode={page.coverDisplayMode}
-              width={page.coverWidth}
-              positionX={page.coverPositionX}
-              positionY={page.coverPositionY}
-              zoom={page.coverZoom}
-              borderWidth={page.coverBorderWidth}
-              borderStyle={page.coverBorderStyle}
-              borderColor={page.coverBorderColor}
-              borderRadius={page.coverBorderRadius}
-              shadow={page.coverFrameShadow}
-              className="mt-10"
-            />
-          ) : null}
-
-          {content ? (
-            <MarkdownContent className="site-page-content mt-12 max-w-4xl">
-              {content}
-            </MarkdownContent>
-          ) : null}
+          {coverElement && page.coverPlacement !== "above" ? (
+            <div
+              data-cover-placement={page.coverPlacement}
+              className="custom-page-side-layout mt-12 items-start gap-8 lg:gap-12"
+              style={
+                {
+                  "--cover-side-width": `${page.coverSideWidth}%`,
+                  "--cover-content-width": `${100 - page.coverSideWidth}%`,
+                } as React.CSSProperties
+              }
+            >
+              <div
+                className={
+                  page.coverPlacement === "right" ? "lg:order-2" : undefined
+                }
+              >
+                {coverElement}
+              </div>
+              {contentElement ?? (
+                <div aria-hidden="true" className="hidden lg:block" />
+              )}
+            </div>
+          ) : (
+            <>
+              {coverElement ? <div className="mt-10">{coverElement}</div> : null}
+              {contentElement ? (
+                <div className="mt-12">{contentElement}</div>
+              ) : null}
+            </>
+          )}
         </div>
       </article>
 

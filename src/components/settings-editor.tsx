@@ -23,6 +23,11 @@ import {
 } from "@/components/admin-shell";
 import { MarkdownContent } from "@/components/markdown-content";
 import { MarkdownEditor } from "@/components/markdown-editor";
+import { CustomPageCover } from "@/components/custom-page-cover";
+import {
+  CoverSettingsEditor,
+  type CoverSettings,
+} from "@/components/cover-settings-editor";
 import {
   NavigationOrderBoard,
   type EditableNavigationItem,
@@ -60,6 +65,10 @@ type EditorInitial = {
   logoName: string | null;
   heroUrl: string | null;
   heroName: string | null;
+  aboutImageUrl: string | null;
+  aboutImageName: string | null;
+  aboutCover: CoverSettings;
+  aboutCoverColumnWidth: number;
   faviconUrl: string | null;
   faviconName: string | null;
   colors: {
@@ -101,15 +110,22 @@ export function SettingsEditor({
   const [typography, setTypography] = useState(initial.typography);
   const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
   const [heroUrl, setHeroUrl] = useState(initial.heroUrl);
+  const [aboutImageUrl, setAboutImageUrl] = useState(initial.aboutImageUrl);
+  const [aboutCover, setAboutCover] = useState(initial.aboutCover);
+  const [aboutCoverColumnWidth, setAboutCoverColumnWidth] = useState(
+    initial.aboutCoverColumnWidth,
+  );
   const [faviconUrl, setFaviconUrl] = useState(initial.faviconUrl);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [removeHero, setRemoveHero] = useState(false);
+  const [removeAboutImage, setRemoveAboutImage] = useState(false);
   const [removeFavicon, setRemoveFavicon] = useState(false);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [dirty, setDirty] = useState(false);
 
   useObjectUrlCleanup(logoUrl);
   useObjectUrlCleanup(heroUrl);
+  useObjectUrlCleanup(aboutImageUrl);
   useObjectUrlCleanup(faviconUrl);
 
   const languageMode: LanguageMode =
@@ -120,6 +136,7 @@ export function SettingsEditor({
         : "englishOnly";
   const activePreviewLocale =
     languageChoice === "single" ? defaultLocale : previewLocale;
+  const visibleAboutImageUrl = removeAboutImage ? null : aboutImageUrl;
 
   function updateCopy(key: CopyKey, locale: Locale, nextValue: string) {
     setDirty(true);
@@ -412,6 +429,55 @@ export function SettingsEditor({
               markdown
               required
             />
+            <MediaField
+              label="Image on the right (optional)"
+              name="aboutImage"
+              currentName={initial.aboutImageName}
+              previewUrl={removeAboutImage ? null : aboutImageUrl}
+              wide
+              removeName="removeAboutImage"
+              remove={removeAboutImage}
+              onRemove={(checked) => {
+                setRemoveAboutImage(checked);
+                if (!checked) setAboutImageUrl(initial.aboutImageUrl);
+              }}
+              onFile={(file) => {
+                setRemoveAboutImage(false);
+                previewFile(file, setAboutImageUrl);
+              }}
+              help="On phones the image moves below the About text."
+            />
+            <label className="block text-sm font-semibold text-[#3a352f]">
+              <span className="flex items-center justify-between gap-2">
+                Image column width
+                <output>{Math.round(aboutCoverColumnWidth)}%</output>
+              </span>
+              <input
+                name="aboutCoverColumnWidth"
+                type="range"
+                min="30"
+                max="60"
+                step="1"
+                value={aboutCoverColumnWidth}
+                onChange={(event) =>
+                  setAboutCoverColumnWidth(Number(event.target.value))
+                }
+                className="mt-2 block w-full accent-[#006d77]"
+              />
+            </label>
+            <div className="rounded-3xl border border-black/10 p-4 sm:p-5">
+              <CoverSettingsEditor
+                namePrefix="aboutCover"
+                value={aboutCover}
+                onChange={(nextValue) => {
+                  setAboutCover(nextValue);
+                  setDirty(true);
+                }}
+                previewUrl={removeAboutImage ? null : aboutImageUrl}
+                previewAlt="About section"
+                frameShape="side"
+              />
+            </div>
           </div>
         </Panel>
 
@@ -717,31 +783,67 @@ export function SettingsEditor({
               className="p-5"
               style={{ backgroundColor: colors.backgroundColor, color: colors.textColor }}
             >
-              <p
-                className="font-semibold uppercase tracking-[0.16em]"
-                style={{ color: colors.primaryColor, fontSize: ".58rem" }}
-              >
-                {activePreviewLocale === "nl" ? "Over" : "About"}
-              </p>
-              <h3
-                className="mt-1 font-semibold"
-                style={{ fontSize: `${1.55 * typography.headingFontScale}rem` }}
-              >
-                {copy.aboutTitle[activePreviewLocale]}
-              </h3>
               <div
-                className="mt-3"
-                style={{
-                  color: colors.mutedColor,
-                  fontSize: `${0.76 * typography.bodyFontScale}rem`,
-                }}
+                className={`grid items-start gap-4 ${
+                  visibleAboutImageUrl && device === "desktop" ? "" : "grid-cols-1"
+                }`}
+                style={
+                  visibleAboutImageUrl && device === "desktop"
+                    ? {
+                        gridTemplateColumns: `${
+                          100 - aboutCoverColumnWidth
+                        }fr ${aboutCoverColumnWidth}fr`,
+                      }
+                    : undefined
+                }
               >
-                <MarkdownContent
-                  headingOffset={3}
-                  className="markdown-preview-compact leading-relaxed"
-                >
-                  {copy.aboutText[activePreviewLocale]}
-                </MarkdownContent>
+                <div>
+                  <p
+                    className="font-semibold uppercase tracking-[0.16em]"
+                    style={{ color: colors.primaryColor, fontSize: ".58rem" }}
+                  >
+                    {activePreviewLocale === "nl" ? "Over" : "About"}
+                  </p>
+                  <h3
+                    className="mt-1 font-semibold"
+                    style={{
+                      fontSize: `${1.55 * typography.headingFontScale}rem`,
+                    }}
+                  >
+                    {copy.aboutTitle[activePreviewLocale]}
+                  </h3>
+                  <div
+                    className="mt-3"
+                    style={{
+                      color: colors.mutedColor,
+                      fontSize: `${0.76 * typography.bodyFontScale}rem`,
+                    }}
+                  >
+                    <MarkdownContent
+                      headingOffset={3}
+                      className="markdown-preview-compact leading-relaxed"
+                    >
+                      {copy.aboutText[activePreviewLocale]}
+                    </MarkdownContent>
+                  </div>
+                </div>
+                {visibleAboutImageUrl ? (
+                  <CustomPageCover
+                    src={visibleAboutImageUrl}
+                    alt=""
+                    mode={aboutCover.mode}
+                    width={aboutCover.width}
+                    positionX={aboutCover.positionX}
+                    positionY={aboutCover.positionY}
+                    zoom={aboutCover.zoom}
+                    borderWidth={aboutCover.borderWidth}
+                    borderStyle={aboutCover.borderStyle}
+                    borderColor={aboutCover.borderColor}
+                    borderRadius={aboutCover.borderRadius}
+                    shadow={aboutCover.shadow}
+                    frameShape="side"
+                  />
+                ) : null}
               </div>
             </div>
           </div>

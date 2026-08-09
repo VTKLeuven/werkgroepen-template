@@ -9,6 +9,7 @@ import {
   MessagesSquare,
 } from "lucide-react";
 import { MarkdownContent } from "@/components/markdown-content";
+import { CustomPageCover } from "@/components/custom-page-cover";
 import { SiteHeader } from "@/components/site-header";
 import { formatEventDate, mediaUrl } from "@/lib/format";
 import {
@@ -40,6 +41,7 @@ export function PublicSite({
     .reverse()
     .slice(0, 3);
   const heroImage = mediaUrl(settings.heroMediaId);
+  const aboutImage = mediaUrl(settings.aboutMediaId);
   const siteName = localized(
     locale,
     settings.siteNameEn,
@@ -94,17 +96,52 @@ export function PublicSite({
               settings.aboutTitle,
             )}
           >
-            <MarkdownContent
-              headingOffset={2}
-              className="site-about-copy max-w-3xl text-[var(--muted)]"
+            <div
+              className={`homepage-about-layout items-start gap-8 lg:gap-12 ${
+                aboutImage ? "" : "max-w-3xl"
+              }`}
+              style={
+                aboutImage
+                  ? ({
+                      "--cover-side-width": `${
+                        100 - settings.aboutCoverColumnWidth
+                      }%`,
+                      "--cover-content-width": `${
+                        settings.aboutCoverColumnWidth
+                      }%`,
+                    } as React.CSSProperties)
+                  : undefined
+              }
             >
-              {localized(
-                locale,
-                settings.aboutTextEn,
-                settings.aboutTextNl,
-                settings.aboutText,
-              )}
-            </MarkdownContent>
+              <MarkdownContent
+                headingOffset={2}
+                className="site-about-copy text-[var(--muted)]"
+              >
+                {localized(
+                  locale,
+                  settings.aboutTextEn,
+                  settings.aboutTextNl,
+                  settings.aboutText,
+                )}
+              </MarkdownContent>
+              {aboutImage ? (
+                <CustomPageCover
+                  src={aboutImage}
+                  alt=""
+                  mode={settings.aboutCoverDisplayMode}
+                  width={settings.aboutCoverWidth}
+                  positionX={settings.aboutCoverPositionX}
+                  positionY={settings.aboutCoverPositionY}
+                  zoom={settings.aboutCoverZoom}
+                  borderWidth={settings.aboutCoverBorderWidth}
+                  borderStyle={settings.aboutCoverBorderStyle}
+                  borderColor={settings.aboutCoverBorderColor}
+                  borderRadius={settings.aboutCoverBorderRadius}
+                  shadow={settings.aboutCoverFrameShadow}
+                  frameShape="side"
+                />
+              ) : null}
+            </div>
           </Section>
         );
       case "team":

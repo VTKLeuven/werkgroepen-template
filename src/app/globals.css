@@ -127,6 +127,12 @@ img {
   font-size: calc(1.125rem * var(--body-font-scale, 1));
 }
 
+.custom-page-side-layout,
+.homepage-about-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .markdown-content {
   line-height: 1.8;
   overflow-wrap: anywhere;
@@ -278,6 +284,19 @@ img {
 @media (min-width: 1024px) {
   .site-hero-title {
     font-size: calc(6rem * var(--hero-title-font-scale, 1));
+  }
+
+  .custom-page-side-layout,
+  .homepage-about-layout {
+    grid-template-columns:
+      minmax(0, var(--cover-side-width))
+      minmax(0, var(--cover-content-width));
+  }
+
+  .custom-page-side-layout[data-cover-placement="right"] {
+    grid-template-columns:
+      minmax(0, var(--cover-content-width))
+      minmax(0, var(--cover-side-width));
   }
 }
 

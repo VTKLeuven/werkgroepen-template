@@ -49,6 +49,12 @@ enum CoverFrameShadow {
   strong
 }
 
+enum CoverPlacement {
+  above
+  left
+  right
+}
+
 enum SectionKey {
   about
   team
@@ -66,53 +72,66 @@ model AdminUser {
 }
 
 model SiteSettings {
-  id               String       @id @default("site")
-  defaultLocale    Locale       @default(en)
-  languageMode     LanguageMode @default(bilingual)
-  siteName         String       @default("Chemix")
-  siteNameEn       String       @default("Chemix")
-  siteNameNl       String       @default("Chemix")
-  headerName       String       @default("Chemix")
-  headerNameEn     String       @default("Chemix")
-  headerNameNl     String       @default("Chemix")
-  logoMode         LogoMode     @default(iconWithText)
-  logoMediaId      String?
-  logoMedia        MediaAsset?  @relation("SiteLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
-  faviconMediaId   String?
-  faviconMedia     MediaAsset?  @relation("SiteFavicon", fields: [faviconMediaId], references: [id], onDelete: SetNull)
-  heroMediaId      String?
-  heroMedia        MediaAsset?  @relation("HeroImage", fields: [heroMediaId], references: [id], onDelete: SetNull)
-  heroEyebrow      String       @default("VTK subdivision")
-  heroEyebrowEn    String       @default("VTK subdivision")
-  heroEyebrowNl    String       @default("VTK werkgroep")
-  heroTitle        String       @default("A student community for curious engineers")
-  heroTitleEn      String       @default("A student community for curious engineers")
-  heroTitleNl      String       @default("Een studentencommunity voor nieuwsgierige ingenieurs")
-  heroSlogan       String?
-  heroSloganEn     String?
-  heroSloganNl     String?
-  heroButtonText   String?
-  heroButtonTextEn String?
-  heroButtonTextNl String?
-  heroButtonUrl    String?
-  aboutTitle       String       @default("About us")
-  aboutTitleEn     String       @default("About us")
-  aboutTitleNl     String       @default("Over ons")
-  aboutText        String       @db.Text
-  aboutTextEn      String       @default("") @db.Text
-  aboutTextNl      String       @default("") @db.Text
-  contactTitle     String       @default("Contact us")
-  contactTitleEn   String       @default("Contact us")
-  contactTitleNl   String       @default("Contacteer ons")
-  contactText      String?      @db.Text
-  contactTextEn    String?      @db.Text
-  contactTextNl    String?      @db.Text
-  contactEmail     String       @default("hello@example.org")
-  facebookUrl      String?
-  instagramUrl     String?
-  linkedinUrl      String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id                     String           @id @default("site")
+  defaultLocale          Locale           @default(en)
+  languageMode           LanguageMode     @default(bilingual)
+  siteName               String           @default("Chemix")
+  siteNameEn             String           @default("Chemix")
+  siteNameNl             String           @default("Chemix")
+  headerName             String           @default("Chemix")
+  headerNameEn           String           @default("Chemix")
+  headerNameNl           String           @default("Chemix")
+  logoMode               LogoMode         @default(iconWithText)
+  logoMediaId            String?
+  logoMedia              MediaAsset?      @relation("SiteLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
+  faviconMediaId         String?
+  faviconMedia           MediaAsset?      @relation("SiteFavicon", fields: [faviconMediaId], references: [id], onDelete: SetNull)
+  heroMediaId            String?
+  heroMedia              MediaAsset?      @relation("HeroImage", fields: [heroMediaId], references: [id], onDelete: SetNull)
+  aboutMediaId           String?
+  aboutMedia             MediaAsset?      @relation("AboutImage", fields: [aboutMediaId], references: [id], onDelete: SetNull)
+  heroEyebrow            String           @default("VTK subdivision")
+  heroEyebrowEn          String           @default("VTK subdivision")
+  heroEyebrowNl          String           @default("VTK werkgroep")
+  heroTitle              String           @default("A student community for curious engineers")
+  heroTitleEn            String           @default("A student community for curious engineers")
+  heroTitleNl            String           @default("Een studentencommunity voor nieuwsgierige ingenieurs")
+  heroSlogan             String?
+  heroSloganEn           String?
+  heroSloganNl           String?
+  heroButtonText         String?
+  heroButtonTextEn       String?
+  heroButtonTextNl       String?
+  heroButtonUrl          String?
+  aboutTitle             String           @default("About us")
+  aboutTitleEn           String           @default("About us")
+  aboutTitleNl           String           @default("Over ons")
+  aboutText              String           @db.Text
+  aboutTextEn            String           @default("") @db.Text
+  aboutTextNl            String           @default("") @db.Text
+  aboutCoverDisplayMode  CoverDisplayMode @default(fill)
+  aboutCoverWidth        Float            @default(100)
+  aboutCoverPositionX    Float            @default(50)
+  aboutCoverPositionY    Float            @default(50)
+  aboutCoverZoom         Float            @default(1)
+  aboutCoverBorderWidth  Float            @default(0)
+  aboutCoverBorderStyle  CoverBorderStyle @default(solid)
+  aboutCoverBorderColor  String           @default("#231f20")
+  aboutCoverBorderRadius Float            @default(32)
+  aboutCoverFrameShadow  CoverFrameShadow @default(strong)
+  aboutCoverColumnWidth  Float            @default(42)
+  contactTitle           String           @default("Contact us")
+  contactTitleEn         String           @default("Contact us")
+  contactTitleNl         String           @default("Contacteer ons")
+  contactText            String?          @db.Text
+  contactTextEn          String?          @db.Text
+  contactTextNl          String?          @db.Text
+  contactEmail           String           @default("hello@example.org")
+  facebookUrl            String?
+  instagramUrl           String?
+  linkedinUrl            String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 }
 
 model ThemeSettings {
@@ -143,6 +162,7 @@ model MediaAsset {
   siteLogos           SiteSettings[] @relation("SiteLogo")
   siteFavicons        SiteSettings[] @relation("SiteFavicon")
   heroImages          SiteSettings[] @relation("HeroImage")
+  aboutImages         SiteSettings[] @relation("AboutImage")
   teamMemberPortraits TeamMember[]   @relation("TeamMemberPortrait")
   eventPictures       Event[]        @relation("EventPicture")
   partnerLogos        Partner[]      @relation("PartnerLogo")
@@ -256,6 +276,8 @@ model CustomPage {
   coverBorderColor  String           @default("#231f20")
   coverBorderRadius Float            @default(32)
   coverFrameShadow  CoverFrameShadow @default(strong)
+  coverPlacement    CoverPlacement   @default(above)
+  coverSideWidth    Float            @default(42)
   sortOrder         Int              @default(0)
   isPublished       Boolean          @default(false)
   showInNavigation  Boolean          @default(false)

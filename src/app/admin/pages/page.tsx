@@ -6,6 +6,7 @@ import {
   getAdminLocalizedValue,
 } from "@/components/admin-localized-field";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { PageSaveConfirmation } from "@/components/page-save-confirmation";
 import {
   CustomPageForm,
   type CustomPagePreviewConfig,
@@ -18,9 +19,13 @@ import { defaultTheme } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export default async function PagesPage() {
+export default async function PagesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string }>;
+}) {
   await requireAdmin();
-  const [pages, siteSettings, themeSettings] = await Promise.all([
+  const [pages, siteSettings, themeSettings, params] = await Promise.all([
     prisma.customPage.findMany({
       include: { coverMedia: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -30,7 +35,9 @@ export default async function PagesPage() {
       include: { logoMedia: true },
     }),
     prisma.themeSettings.findUnique({ where: { id: "theme" } }),
+    searchParams,
   ]);
+  const savedPage = pages.find((page) => page.id === params.saved);
   const languageConfig = getAdminLanguageConfig(siteSettings);
   const theme = themeSettings ?? defaultTheme;
   const previewConfig: CustomPagePreviewConfig = {
@@ -60,6 +67,19 @@ export default async function PagesPage() {
       title="Pages"
       description="Create standalone content pages and choose which ones appear in the website header."
     >
+      {savedPage ? (
+        <PageSaveConfirmation
+          title={getAdminLocalizedValue(
+            languageConfig,
+            savedPage.titleEn,
+            savedPage.titleNl,
+          )}
+          summary={coverSummary(savedPage)}
+          publicHref={
+            savedPage.isPublished ? `/pages/${savedPage.slug}` : null
+          }
+        />
+      ) : null}
       <div className="grid gap-6">
         <Panel title="Add page">
           <details className="rounded-2xl border border-black/10 p-4">
@@ -92,6 +112,7 @@ export default async function PagesPage() {
               return (
                 <details
                   key={page.id}
+                  open={page.id === params.saved}
                   className="rounded-3xl border border-black/10 bg-white p-4"
                 >
                   <summary className="cursor-pointer list-none">
@@ -116,6 +137,7 @@ export default async function PagesPage() {
                         <p className="mt-1 text-xs font-semibold text-[#9b948a]">
                           {page.isPublished ? "Published" : "Draft"}
                           {page.showInNavigation ? " · Header" : ""}
+                          {` · ${coverSummary(page)}`}
                         </p>
                       </div>
                       {page.isPublished ? (
@@ -156,6 +178,8 @@ export default async function PagesPage() {
                         coverBorderColor: page.coverBorderColor,
                         coverBorderRadius: page.coverBorderRadius,
                         coverFrameShadow: page.coverFrameShadow,
+                        coverPlacement: page.coverPlacement,
+                        coverSideWidth: page.coverSideWidth,
                         isPublished: page.isPublished,
                         showInNavigation: page.showInNavigation,
                       }}
@@ -175,4 +199,24 @@ export default async function PagesPage() {
       </div>
     </AdminShell>
   );
+}
+
+function coverSummary(page: {
+  coverDisplayMode: "full" | "flexible" | "fit" | "fill" | "crop";
+  coverWidth: number;
+  coverPlacement: "above" | "left" | "right";
+  coverSideWidth: number;
+}) {
+  const mode =
+    page.coverDisplayMode === "flexible"
+      ? `flexible image at ${Math.round(page.coverWidth)}%`
+      : `${page.coverDisplayMode} image`;
+  const placement =
+    page.coverPlacement === "above"
+      ? "above the content"
+      : `${page.coverPlacement} of the content at ${Math.round(
+          page.coverSideWidth,
+        )}% column width`;
+
+  return `${mode}, ${placement}`;
 }

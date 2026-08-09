@@ -10,6 +10,7 @@ export type CustomPageCoverBorderStyle =
   | "dotted"
   | "double";
 export type CustomPageCoverShadow = "none" | "soft" | "strong";
+export type CustomPageCoverFrameShape = "wide" | "side";
 
 const shadowClasses: Record<CustomPageCoverShadow, string> = {
   none: "",
@@ -30,6 +31,7 @@ export function CustomPageCover({
   borderColor = "#231f20",
   borderRadius = 32,
   shadow = "strong",
+  frameShape = "wide",
   className = "",
 }: {
   src: string;
@@ -44,6 +46,7 @@ export function CustomPageCover({
   borderColor?: string;
   borderRadius?: number;
   shadow?: CustomPageCoverShadow;
+  frameShape?: CustomPageCoverFrameShape;
   className?: string;
 }) {
   const frameStyle: React.CSSProperties = {
@@ -57,12 +60,15 @@ export function CustomPageCover({
   if (mode === "full" || mode === "flexible") {
     return (
       <div
+        data-cover-mode={mode}
+        data-cover-width={mode === "flexible" ? clamp(width, 25, 100) : undefined}
         className={frameClassName}
         style={
           mode === "flexible"
             ? {
                 ...frameStyle,
-                width: `${clamp(width, 25, 100)}%`,
+                inlineSize: `${clamp(width, 25, 100)}%`,
+                maxInlineSize: "100%",
                 marginInline: "auto",
               }
             : frameStyle
@@ -84,7 +90,8 @@ export function CustomPageCover({
 
   return (
     <div
-      className={`aspect-[16/7] ${frameClassName}`}
+      data-cover-mode={mode}
+      className={`${frameShape === "side" ? "aspect-[4/3]" : "aspect-[16/7]"} ${frameClassName}`}
       style={frameStyle}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}

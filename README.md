@@ -125,11 +125,13 @@ The admin panel manages:
 - Homepage section visibility and one global header order shared with custom pages
 - Standalone pages with localized titles, optional intro copy, cover photos,
   live preview, full/flexible/fit/fill/manual-crop image layouts, configurable
-  borders and shadows, draft/published state, and header placement
+  borders and shadows, above/left/right content placement, explicit save
+  confirmation, draft/published state, and header placement
 - Markdown editing and preview for page content, About, contact text, and event
   descriptions, including inline image uploads
 - Optional hero eyebrow and supporting copy (empty translations stay empty)
-- About and contact text
+- About and contact text, plus an optional right-hand About image with the same
+  sizing, crop, border, radius, and shadow controls as custom-page covers
 - Email, Facebook, Instagram, and LinkedIn links
 - Team members with portrait, function, visual ordering, and profile URL
 - Academic years for team archives, with one current year shown publicly
