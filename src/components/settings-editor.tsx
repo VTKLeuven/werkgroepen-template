@@ -8,8 +8,6 @@ import {
 } from "react";
 import { useFormStatus } from "react-dom";
 import {
-  AlertCircle,
-  Check,
   ChevronDown,
   Contact,
   Eye,
@@ -239,30 +237,38 @@ export function SettingsEditor({
     >
       <input type="hidden" name="languageMode" value={languageMode} />
       <div className="grid min-w-0 gap-6">
-        {saved ? (
-          <p className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-            <Check size={17} />
-            Your website settings were saved.
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#006d77]/15 bg-[#006d77]/5 px-4 py-3">
-          <div>
-            <p className="text-sm font-semibold text-[#231f20]">
-              Settings are grouped by purpose
-            </p>
-            <p className="mt-0.5 text-xs text-[#6f6860]">
-              Open only what you need. The full-page preview is available on demand.
-            </p>
+        <div className="sticky top-3 z-30 flex justify-end">
+          <div className="inline-flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-lg shadow-black/10 backdrop-blur">
+            <span
+              title={
+                dirty
+                  ? "There are unsaved changes."
+                  : saved
+                    ? "Your changes were saved."
+                    : "No unsaved changes."
+              }
+              className={`inline-flex items-center gap-1.5 px-1 text-xs font-semibold ${
+                dirty ? "text-amber-700" : "text-emerald-700"
+              }`}
+              aria-live="polite"
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  dirty ? "bg-amber-500" : "bg-emerald-500"
+                }`}
+              />
+              {dirty ? "Unsaved" : "Saved"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowPreview((current) => !current)}
+              className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 py-2 text-xs font-semibold text-[#006d77] transition hover:border-[#006d77]/25 hover:bg-[#006d77]/5"
+            >
+              {showPreview ? <Eye size={14} /> : <Monitor size={14} />}
+              {showPreview ? "Hide preview" : "Preview"}
+            </button>
+            <SaveButton />
           </div>
-          <button
-            type="button"
-            onClick={() => setShowPreview((current) => !current)}
-            className="inline-flex items-center gap-2 rounded-full border border-[#006d77]/20 bg-white px-4 py-2 text-sm font-semibold text-[#006d77] shadow-sm transition hover:-translate-y-0.5"
-          >
-            {showPreview ? <Eye size={16} /> : <Monitor size={16} />}
-            {showPreview ? "Hide preview" : "Show full preview"}
-          </button>
         </div>
 
         <SettingsSection
@@ -835,25 +841,6 @@ export function SettingsEditor({
           </div>
         </SettingsSection>
 
-        <div
-          className={`sticky bottom-4 z-20 flex flex-wrap items-center gap-3 rounded-3xl border p-4 shadow-xl backdrop-blur ${
-            dirty
-              ? "border-amber-300 bg-amber-50/95 shadow-amber-950/10"
-              : "border-emerald-200 bg-white/95 shadow-black/10"
-          }`}
-        >
-          <SaveButton />
-          <p
-            className={`flex items-center gap-2 text-sm font-semibold ${
-              dirty ? "text-amber-900" : "text-emerald-700"
-            }`}
-          >
-            {dirty ? <AlertCircle size={17} /> : <Check size={17} />}
-            {dirty
-              ? "Unsaved changes — save before leaving this page."
-              : "All website settings are saved."}
-          </p>
-        </div>
       </div>
 
       {showPreview ? (
@@ -1018,7 +1005,6 @@ export function SettingsEditor({
             <p className="text-xs leading-5 text-white/55">
               Preview changes are local until you save.
             </p>
-            <SaveButton compact />
           </div>
         </div>
       </aside>
@@ -1785,19 +1771,15 @@ function PreviewButton({
   );
 }
 
-function SaveButton({ compact = false }: { compact?: boolean }) {
+function SaveButton() {
   const { pending } = useFormStatus();
 
   return (
     <button
       disabled={pending}
-      className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-semibold transition disabled:cursor-wait disabled:opacity-60 ${
-        compact
-          ? "bg-white px-4 py-2 text-xs text-[#211f1c]"
-          : "bg-[#006d77] px-5 py-2.5 text-sm text-white hover:-translate-y-0.5 hover:shadow-lg"
-      }`}
+      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#006d77] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#005d66] disabled:cursor-wait disabled:opacity-60"
     >
-      <Save size={compact ? 14 : 16} />
+      <Save size={14} />
       {pending ? "Saving…" : "Save changes"}
     </button>
   );
