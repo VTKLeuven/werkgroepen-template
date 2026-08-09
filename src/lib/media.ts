@@ -7,11 +7,12 @@ const allowedImageTypes = new Set([
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
   "image/x-icon",
   "image/vnd.microsoft.icon",
   "image/ico",
 ]);
+
+const maximumImageSize = 10 * 1024 * 1024;
 
 export function uploadDir() {
   return process.env.UPLOAD_DIR || "uploads";
@@ -24,12 +25,16 @@ export function mediaPath(fileName: string) {
 export async function saveUploadedImage(file: File | null, alt?: string) {
   if (!file || file.size === 0) return null;
 
+  if (file.size > maximumImageSize) {
+    throw new Error("Images must be 10 MB or smaller.");
+  }
+
   const extension = file.name.match(/\.[a-z0-9]+$/i)?.[0].toLowerCase() || ".bin";
   const mimeType = file.type || (extension === ".ico" ? "image/x-icon" : "");
 
   if (!allowedImageTypes.has(mimeType)) {
     throw new Error(
-      "Only JPEG, PNG, WebP, GIF, SVG, and ICO images are supported.",
+      "Only JPEG, PNG, WebP, GIF, and ICO images are supported.",
     );
   }
 

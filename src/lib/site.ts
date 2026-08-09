@@ -10,7 +10,15 @@ export async function getSiteData() {
       orderBy: { sortOrder: "desc" },
     }));
 
-  const [settings, theme, sections, teamMemberships, events, partners] =
+  const [
+    settings,
+    theme,
+    sections,
+    teamMemberships,
+    events,
+    partners,
+    customPages,
+  ] =
     await Promise.all([
       prisma.siteSettings.findUnique({
         where: { id: "site" },
@@ -42,6 +50,18 @@ export async function getSiteData() {
         include: { logoMedia: true },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       }),
+      prisma.customPage.findMany({
+        where: { isPublished: true },
+        select: {
+          id: true,
+          slug: true,
+          titleEn: true,
+          titleNl: true,
+          showInNavigation: true,
+          sortOrder: true,
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      }),
     ]);
 
   const storedSectionKeys = new Set(sections.map((section) => section.key));
@@ -58,6 +78,7 @@ export async function getSiteData() {
     teamMembers: teamMemberships.map((membership) => membership.teamMember),
     events,
     partners,
+    customPages,
   };
 }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
+  Files,
   Handshake,
   LayoutDashboard,
   Settings,
@@ -14,6 +15,7 @@ import {
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/pages", label: "Pages", icon: Files },
   { href: "/admin/team", label: "Team", icon: Users },
   { href: "/admin/events", label: "Events", icon: CalendarDays },
   { href: "/admin/partners", label: "Partners", icon: Handshake },

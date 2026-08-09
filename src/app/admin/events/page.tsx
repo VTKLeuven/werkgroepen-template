@@ -205,7 +205,12 @@ function EventForm({
           />
         </Field>
         <Field label="Picture">
-          <input name="picture" type="file" accept="image/*" className={inputClass} />
+          <input
+            name="picture"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
+            className={inputClass}
+          />
         </Field>
         <LocalizedAdminField
           label="Location"
@@ -245,6 +250,7 @@ function EventForm({
         enValue={event?.summaryEn}
         nlValue={event?.summaryNl}
         fallbackValue={event?.summary}
+        preserveEmpty
         {...languageConfig}
       />
       <LocalizedAdminField
@@ -254,7 +260,7 @@ function EventForm({
         nlValue={event?.descriptionNl}
         fallbackValue={event?.description}
         required
-        multiline
+        markdown
         {...languageConfig}
       />
       <label className="flex items-center gap-3 text-sm font-semibold">

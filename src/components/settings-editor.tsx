@@ -21,6 +21,8 @@ import {
   inputClass,
   textareaClass,
 } from "@/components/admin-shell";
+import { MarkdownContent } from "@/components/markdown-content";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import {
   SectionOrderBoard,
   type EditableSection,
@@ -119,6 +121,7 @@ export function SettingsEditor({
     languageChoice === "single" ? defaultLocale : previewLocale;
 
   function updateCopy(key: CopyKey, locale: Locale, nextValue: string) {
+    setDirty(true);
     setCopy((current) => ({
       ...current,
       [key]: { ...current[key], [locale]: nextValue },
@@ -285,8 +288,8 @@ export function SettingsEditor({
                 currentName={initial.faviconName}
                 previewUrl={removeFavicon ? null : faviconUrl}
                 previewContain
-                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,.ico"
-                help="A square PNG, SVG, or ICO works best."
+                accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
+                help="A square PNG or ICO works best."
                 removeName="removeFavicon"
                 remove={removeFavicon}
                 onRemove={(checked) => {
@@ -331,7 +334,6 @@ export function SettingsEditor({
               languageChoice={languageChoice}
               activeLocale={defaultLocale}
               onChange={(locale, value) => updateCopy("heroEyebrow", locale, value)}
-              required
             />
             <LocalizedControl
               label="Headline"
@@ -390,7 +392,7 @@ export function SettingsEditor({
               languageChoice={languageChoice}
               activeLocale={defaultLocale}
               onChange={(locale, value) => updateCopy("aboutText", locale, value)}
-              multiline
+              markdown
               required
             />
           </div>
@@ -416,7 +418,7 @@ export function SettingsEditor({
               languageChoice={languageChoice}
               activeLocale={defaultLocale}
               onChange={(locale, value) => updateCopy("contactText", locale, value)}
-              multiline
+              markdown
             />
             <Field label="Email">
               <input
@@ -656,12 +658,14 @@ export function SettingsEditor({
               ) : null}
               <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-black/10" />
               <div className="relative z-10 max-w-[92%]">
-                <p
-                  className="mb-2 font-semibold uppercase tracking-[0.16em] text-white/75"
-                  style={{ fontSize: `${0.64 * typography.heroBodyFontScale}rem` }}
-                >
-                  {copy.heroEyebrow[activePreviewLocale]}
-                </p>
+                {copy.heroEyebrow[activePreviewLocale] ? (
+                  <p
+                    className="mb-2 font-semibold uppercase tracking-[0.16em] text-white/75"
+                    style={{ fontSize: `${0.64 * typography.heroBodyFontScale}rem` }}
+                  >
+                    {copy.heroEyebrow[activePreviewLocale]}
+                  </p>
+                ) : null}
                 <h2
                   className="font-semibold leading-[0.98]"
                   style={{
@@ -708,15 +712,20 @@ export function SettingsEditor({
               >
                 {copy.aboutTitle[activePreviewLocale]}
               </h3>
-              <p
-                className="mt-3 line-clamp-3 leading-relaxed"
+              <div
+                className="mt-3"
                 style={{
                   color: colors.mutedColor,
                   fontSize: `${0.76 * typography.bodyFontScale}rem`,
                 }}
               >
-                {copy.aboutText[activePreviewLocale]}
-              </p>
+                <MarkdownContent
+                  headingOffset={3}
+                  className="markdown-preview-compact leading-relaxed"
+                >
+                  {copy.aboutText[activePreviewLocale]}
+                </MarkdownContent>
+              </div>
             </div>
           </div>
 
@@ -793,6 +802,7 @@ function LocalizedControl({
   activeLocale,
   onChange,
   multiline = false,
+  markdown = false,
   required = false,
 }: {
   label: string;
@@ -803,6 +813,7 @@ function LocalizedControl({
   activeLocale: Locale;
   onChange: (locale: Locale, value: string) => void;
   multiline?: boolean;
+  markdown?: boolean;
   required?: boolean;
 }) {
   const visibleLocales: Locale[] =
@@ -822,13 +833,27 @@ function LocalizedControl({
         {visibleLocales.map((locale) => (
           <Field
             key={locale}
+            composite={markdown}
             label={
               languageChoice === "bilingual"
                 ? `${label} · ${locale === "en" ? "English" : "Dutch"}`
                 : label
             }
           >
-            {multiline ? (
+            {markdown ? (
+              <MarkdownEditor
+                ariaLabel={
+                  languageChoice === "bilingual"
+                    ? `${label} · ${locale === "en" ? "English" : "Dutch"}`
+                    : label
+                }
+                name={`${field}${locale === "en" ? "En" : "Nl"}`}
+                value={values[locale]}
+                onChange={(value) => onChange(locale, value)}
+                required={required}
+                headingOffset={2}
+              />
+            ) : multiline ? (
               <textarea
                 name={`${field}${locale === "en" ? "En" : "Nl"}`}
                 required={required}
@@ -870,7 +895,7 @@ function MediaField({
   onRemove,
   onFile,
   help,
-  accept = "image/*",
+  accept = "image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico",
   wide = false,
   previewContain = false,
 }: {

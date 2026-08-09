@@ -79,10 +79,21 @@ export function Panel({
 export function Field({
   label,
   children,
+  composite = false,
 }: {
   label: string;
   children: React.ReactNode;
+  composite?: boolean;
 }) {
+  if (composite) {
+    return (
+      <div className="grid gap-2 text-sm font-semibold text-[#3a352f]">
+        <span>{label}</span>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <label className="grid gap-2 text-sm font-semibold text-[#3a352f]">
       <span>{label}</span>

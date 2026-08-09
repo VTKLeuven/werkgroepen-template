@@ -177,7 +177,12 @@ function PartnerForm({
           />
         </Field>
         <Field label={partner?.logoMediaId ? "Replace logo" : "Logo"}>
-          <input name="logo" type="file" accept="image/*" className={inputClass} />
+          <input
+            name="logo"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
+            className={inputClass}
+          />
         </Field>
         <label className="flex items-center gap-3 text-sm font-semibold lg:col-span-2">
           <input

@@ -18,6 +18,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 body {
@@ -120,6 +121,139 @@ img {
 .site-detail-body {
   font-size: calc(1.125rem * var(--body-font-scale, 1));
   line-height: 1.8;
+}
+
+.site-page-content {
+  font-size: calc(1.125rem * var(--body-font-scale, 1));
+}
+
+.markdown-content {
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content > * + * {
+  margin-top: 1.25em;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  color: var(--text, currentColor);
+  font-weight: 650;
+  line-height: 1.18;
+}
+
+.markdown-content h1 {
+  font-size: calc(2.2em * var(--heading-font-scale, 1));
+}
+
+.markdown-content h2 {
+  font-size: calc(1.65em * var(--heading-font-scale, 1));
+}
+
+.markdown-content h3 {
+  font-size: calc(1.3em * var(--heading-font-scale, 1));
+}
+
+.markdown-content h4 {
+  font-size: calc(1.1em * var(--heading-font-scale, 1));
+}
+
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: calc(1em * var(--heading-font-scale, 1));
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.55em;
+}
+
+.markdown-content ul {
+  list-style: disc;
+}
+
+.markdown-content ol {
+  list-style: decimal;
+}
+
+.markdown-content li + li {
+  margin-top: 0.35em;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid var(--accent, #f4a261);
+  color: var(--muted, currentColor);
+  padding: 0.35em 0 0.35em 1.15em;
+}
+
+.markdown-content a {
+  color: var(--primary, currentColor);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--accent, currentColor);
+  text-decoration-thickness: 0.16em;
+  text-underline-offset: 0.2em;
+}
+
+.markdown-content :not(pre) > code {
+  border-radius: 0.4em;
+  background: color-mix(in srgb, var(--text, #231f20) 9%, transparent);
+  padding: 0.12em 0.35em;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 1rem;
+  background: #151923;
+  color: #f5f7ff;
+  padding: 1.1rem 1.25rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.9em;
+  line-height: 1.65;
+}
+
+.markdown-content hr {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--text, #231f20) 18%, transparent);
+  margin-block: 2em;
+}
+
+.markdown-content img {
+  width: auto;
+  max-height: 42rem;
+  border-radius: 1.25rem;
+  box-shadow: 0 18px 45px rgb(0 0 0 / 12%);
+}
+
+.markdown-preview-compact {
+  max-height: 5.4em;
+  overflow: hidden;
+}
+
+.markdown-preview-compact > * + * {
+  margin-top: 0.4em;
+}
+
+.markdown-preview-compact h1,
+.markdown-preview-compact h2,
+.markdown-preview-compact h3 {
+  font-size: 1.1em;
 }
 
 @media (min-width: 640px) {

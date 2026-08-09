@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   CalendarDays,
+  Files,
   Languages,
   Palette,
   Users,
@@ -15,11 +16,12 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   await requireAdmin();
 
-  const [team, events, partners, settings, currentYear, visibleSections] =
+  const [team, events, partners, pages, settings, currentYear, visibleSections] =
     await Promise.all([
       prisma.teamMember.count(),
       prisma.event.count(),
       prisma.partner.count(),
+      prisma.customPage.count(),
       prisma.siteSettings.findUnique({ where: { id: "site" } }),
       prisma.academicYear.findFirst({ where: { isCurrent: true } }),
       prisma.siteSection.count({ where: { isVisible: true } }),
@@ -37,7 +39,7 @@ export default async function AdminPage() {
       title="Dashboard"
       description="A clear overview of your public website and the content you can edit."
     >
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           label="Team members"
           value={team}
@@ -56,6 +58,12 @@ export default async function AdminPage() {
           detail="Visible and hidden partners"
           href="/admin/partners"
         />
+        <Metric
+          label="Pages"
+          value={pages}
+          detail="Standalone content pages"
+          href="/admin/pages"
+        />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
@@ -63,12 +71,18 @@ export default async function AdminPage() {
           title="Continue editing"
           description="Go straight to the most common website tasks."
         >
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <QuickLink
               href="/admin/settings"
               title="Customize website"
               description="Brand, hero, colors, type and page sections"
               icon={Palette}
+            />
+            <QuickLink
+              href="/admin/pages"
+              title="Build pages"
+              description="Markdown content, photos and header links"
+              icon={Files}
             />
             <QuickLink
               href="/admin/events"

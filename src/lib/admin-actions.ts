@@ -18,6 +18,10 @@ function nullableValue(formData: FormData, key: string) {
   return input.length > 0 ? input : null;
 }
 
+function textValue(formData: FormData, key: string) {
+  return String(formData.get(key) ?? "").replace(/\r\n?/g, "\n");
+}
+
 function dateValue(formData: FormData, key: string) {
   const input = value(formData, key);
   return input ? new Date(input) : null;
@@ -45,13 +49,15 @@ function localizedFormValues(
   formData: FormData,
   key: string,
   previous?: { en?: string | null; nl?: string | null },
+  preserveWhitespace = false,
 ) {
   const englishKey = `${key}En`;
   const dutchKey = `${key}Nl`;
+  const read = preserveWhitespace ? textValue : value;
 
   return {
-    en: formData.has(englishKey) ? value(formData, englishKey) : previous?.en ?? "",
-    nl: formData.has(dutchKey) ? value(formData, dutchKey) : previous?.nl ?? "",
+    en: formData.has(englishKey) ? read(formData, englishKey) : previous?.en ?? "",
+    nl: formData.has(dutchKey) ? read(formData, dutchKey) : previous?.nl ?? "",
   };
 }
 
@@ -183,18 +189,28 @@ export async function updateSettings(formData: FormData) {
     en: previousSettings?.aboutTitleEn,
     nl: previousSettings?.aboutTitleNl,
   });
-  const aboutText = localizedFormValues(formData, "aboutText", {
-    en: previousSettings?.aboutTextEn,
-    nl: previousSettings?.aboutTextNl,
-  });
+  const aboutText = localizedFormValues(
+    formData,
+    "aboutText",
+    {
+      en: previousSettings?.aboutTextEn,
+      nl: previousSettings?.aboutTextNl,
+    },
+    true,
+  );
   const contactTitle = localizedFormValues(formData, "contactTitle", {
     en: previousSettings?.contactTitleEn,
     nl: previousSettings?.contactTitleNl,
   });
-  const contactText = localizedFormValues(formData, "contactText", {
-    en: previousSettings?.contactTextEn,
-    nl: previousSettings?.contactTextNl,
-  });
+  const contactText = localizedFormValues(
+    formData,
+    "contactText",
+    {
+      en: previousSettings?.contactTextEn,
+      nl: previousSettings?.contactTextNl,
+    },
+    true,
+  );
 
   const publicSiteName = canonical(contentLocale, siteName).trim();
   if (!publicSiteName) throw new Error("The website name cannot be empty.");
@@ -495,6 +511,185 @@ export async function updateTeamMemberOrder(
   revalidatePath("/admin/team");
 }
 
+async function availableCustomPageSlug(input: string, currentId?: string | null) {
+  const base = slugify(input) || "page";
+  let candidate = base;
+  let suffix = 2;
+
+  while (true) {
+    const existing = await prisma.customPage.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    });
+
+    if (!existing || existing.id === currentId) return candidate;
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
+
+export async function saveCustomPage(formData: FormData) {
+  await requireAdmin();
+
+  const id = nullableValue(formData, "id");
+  const [language, previousPage, lastPage] = await Promise.all([
+    currentLanguageConfiguration(),
+    id
+      ? prisma.customPage.findUnique({
+          where: { id },
+          select: {
+            slug: true,
+            titleEn: true,
+            titleNl: true,
+            eyebrowEn: true,
+            eyebrowNl: true,
+            supportingTextEn: true,
+            supportingTextNl: true,
+            contentEn: true,
+            contentNl: true,
+            coverMediaId: true,
+            sortOrder: true,
+          },
+        })
+      : Promise.resolve(null),
+    id
+      ? Promise.resolve(null)
+      : prisma.customPage.findFirst({
+          orderBy: { sortOrder: "desc" },
+          select: { sortOrder: true },
+        }),
+  ]);
+
+  const title = localizedFormValues(formData, "title", {
+    en: previousPage?.titleEn,
+    nl: previousPage?.titleNl,
+  });
+  const eyebrow = localizedFormValues(formData, "eyebrow", {
+    en: previousPage?.eyebrowEn,
+    nl: previousPage?.eyebrowNl,
+  });
+  const supportingText = localizedFormValues(formData, "supportingText", {
+    en: previousPage?.supportingTextEn,
+    nl: previousPage?.supportingTextNl,
+  });
+  const content = localizedFormValues(
+    formData,
+    "content",
+    {
+      en: previousPage?.contentEn,
+      nl: previousPage?.contentNl,
+    },
+    true,
+  );
+  const publicTitle = canonical(language.primaryLocale, title);
+
+  if (!publicTitle) throw new Error("The page title cannot be empty.");
+
+  if (!id && language.languageMode !== "bilingual") {
+    const secondaryLocale = language.primaryLocale === "en" ? "nl" : "en";
+    title[secondaryLocale] ||= publicTitle;
+  }
+
+  const cover = await saveUploadedImage(
+    formData.get("cover") as File | null,
+    publicTitle,
+  );
+  const requestedSlug =
+    nullableValue(formData, "slug") ?? previousPage?.slug ?? publicTitle;
+  let slug = await availableCustomPageSlug(requestedSlug, id);
+  const data = {
+    slug,
+    titleEn: title.en,
+    titleNl: title.nl,
+    eyebrowEn: eyebrow.en || null,
+    eyebrowNl: eyebrow.nl || null,
+    supportingTextEn: supportingText.en || null,
+    supportingTextNl: supportingText.nl || null,
+    contentEn: content.en,
+    contentNl: content.nl,
+    sortOrder: previousPage?.sortOrder ?? (lastPage?.sortOrder ?? -1) + 1,
+    isPublished: formData.get("isPublished") === "on",
+    showInNavigation: formData.get("showInNavigation") === "on",
+    coverMediaId:
+      cover?.id ??
+      (formData.get("removeCover") === "on"
+        ? null
+        : previousPage?.coverMediaId ?? null),
+  };
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      if (id) {
+        await prisma.customPage.update({ where: { id }, data });
+      } else {
+        await prisma.customPage.create({ data });
+      }
+      break;
+    } catch (error) {
+      if (attempt >= 2 || !isUniqueConstraintError(error)) throw error;
+      slug = await availableCustomPageSlug(requestedSlug, id);
+      data.slug = slug;
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/pages");
+  revalidatePath(`/pages/${slug}`);
+  if (previousPage?.slug && previousPage.slug !== slug) {
+    revalidatePath(`/pages/${previousPage.slug}`);
+  }
+}
+
+export async function deleteCustomPage(formData: FormData) {
+  await requireAdmin();
+  const id = value(formData, "id");
+  const page = await prisma.customPage.findUnique({
+    where: { id },
+    select: { slug: true },
+  });
+
+  if (!page) return;
+
+  await prisma.customPage.delete({ where: { id } });
+  revalidatePath("/");
+  revalidatePath("/admin/pages");
+  revalidatePath(`/pages/${page.slug}`);
+}
+
+export async function updateCustomPageOrder(orderedIds: string[]) {
+  await requireAdmin();
+  const uniqueIds = [...new Set(orderedIds)].filter(Boolean);
+  const storedPages = await prisma.customPage.findMany({
+    select: { id: true },
+  });
+  const storedIds = new Set(storedPages.map((page) => page.id));
+
+  if (
+    uniqueIds.length !== storedIds.size ||
+    uniqueIds.some((id) => !storedIds.has(id))
+  ) {
+    throw new Error("The page order is incomplete. Refresh and try again.");
+  }
+
+  await prisma.$transaction(
+    uniqueIds.map((id, index) =>
+      prisma.customPage.update({ where: { id }, data: { sortOrder: index } }),
+    ),
+  );
+
+  revalidatePath("/");
+  revalidatePath("/admin/pages");
+}
+
 export async function saveEvent(formData: FormData) {
   await requireAdmin();
 
@@ -526,16 +721,39 @@ export async function saveEvent(formData: FormData) {
     en: previousEvent?.summaryEn,
     nl: previousEvent?.summaryNl,
   });
-  const description = localizedFormValues(formData, "description", {
-    en: previousEvent?.descriptionEn,
-    nl: previousEvent?.descriptionNl,
-  });
+  const description = localizedFormValues(
+    formData,
+    "description",
+    {
+      en: previousEvent?.descriptionEn,
+      nl: previousEvent?.descriptionNl,
+    },
+    true,
+  );
   const location = localizedFormValues(formData, "location", {
     en: previousEvent?.locationEn,
     nl: previousEvent?.locationNl,
   });
   const publicTitle = canonical(language.primaryLocale, title);
+  const publicDescription = canonical(language.primaryLocale, description).trim();
+  const publicLocation = canonical(language.primaryLocale, location).trim();
+  const startAt = dateValue(formData, "startAt");
+  const endAt = dateValue(formData, "endAt");
+
   if (!publicTitle) throw new Error("The event title cannot be empty.");
+  if (!publicDescription) {
+    throw new Error("The event description cannot be empty.");
+  }
+  if (!publicLocation) throw new Error("The event location cannot be empty.");
+  if (!startAt || !Number.isFinite(startAt.getTime())) {
+    throw new Error("Choose a valid event start date and time.");
+  }
+  if (endAt && !Number.isFinite(endAt.getTime())) {
+    throw new Error("Choose a valid event end date and time.");
+  }
+  if (endAt && endAt < startAt) {
+    throw new Error("The event end cannot be before its start.");
+  }
 
   if (!id && language.languageMode !== "bilingual") {
     const secondaryLocale = language.primaryLocale === "en" ? "nl" : "en";
@@ -550,8 +768,6 @@ export async function saveEvent(formData: FormData) {
     publicTitle,
   );
   const slug = nullableValue(formData, "slug") ?? slugify(publicTitle);
-  const startAt = dateValue(formData, "startAt") ?? new Date();
-  const endAt = dateValue(formData, "endAt");
   const data = {
     title: publicTitle,
     titleEn: title.en,
@@ -560,10 +776,10 @@ export async function saveEvent(formData: FormData) {
     summary: canonical(language.primaryLocale, summary) || null,
     summaryEn: summary.en || null,
     summaryNl: summary.nl || null,
-    description: canonical(language.primaryLocale, description),
+    description: publicDescription,
     descriptionEn: description.en,
     descriptionNl: description.nl,
-    location: canonical(language.primaryLocale, location),
+    location: publicLocation,
     locationEn: location.en,
     locationNl: location.nl,
     startAt,

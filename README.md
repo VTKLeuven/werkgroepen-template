@@ -106,7 +106,7 @@ down -v` starts clean, but that also deletes the uploads volume and all
 content.
 
 Uploaded logos and photos are stored in the `uploads` Docker volume mounted at
-`/app/uploads`.
+`/app/uploads`. Individual image uploads are limited to 10 MB.
 
 ## Admin content
 
@@ -117,6 +117,11 @@ The admin panel manages:
 - Hero photo, copy, CTA, and a live desktop/mobile preview
 - Theme colors and adjustable body, heading, and hero font sizes
 - Homepage section visibility, navigation placement, and visual ordering
+- Standalone pages with localized titles, optional intro copy, cover photos,
+  draft/published state, header placement, and visual ordering
+- Markdown editing and preview for page content, About, contact text, and event
+  descriptions, including inline image uploads
+- Optional hero eyebrow and supporting copy (empty translations stay empty)
 - About and contact text
 - Email, Facebook, Instagram, and LinkedIn links
 - Team members with portrait, function, visual ordering, and profile URL
@@ -127,3 +132,7 @@ The admin panel manages:
 Settings and all content forms automatically adapt to the configured language
 mode. Existing translations are kept when a site temporarily switches to a
 single language.
+
+Markdown is rendered without raw HTML. The editor supports headings, bold,
+italics, code blocks, links, uploaded images, lists, quotes, and horizontal
+rules; uploaded images use the same persistent uploads volume as other media.

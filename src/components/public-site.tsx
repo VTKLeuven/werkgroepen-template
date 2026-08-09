@@ -4,15 +4,16 @@ import {
   CalendarDays,
   Camera,
   Contact,
-  Languages,
   Mail,
   MapPin,
   MessagesSquare,
 } from "lucide-react";
+import { MarkdownContent } from "@/components/markdown-content";
+import { SiteHeader } from "@/components/site-header";
 import { formatEventDate, mediaUrl } from "@/lib/format";
 import {
-  isMultilingual,
   localized,
+  localizedOptional,
   localizeHref,
   type PublicLocale,
   uiText,
@@ -22,7 +23,6 @@ import type { getSiteData } from "@/lib/site";
 type SiteData = Awaited<ReturnType<typeof getSiteData>>;
 type SectionKey = SiteData["sections"][number]["key"];
 type LanguageMode = SiteData["settings"]["languageMode"];
-type LogoMode = SiteData["settings"]["logoMode"];
 
 export function PublicSite({
   data,
@@ -40,30 +40,21 @@ export function PublicSite({
     .reverse()
     .slice(0, 3);
   const heroImage = mediaUrl(settings.heroMediaId);
-  const logo = mediaUrl(settings.logoMediaId);
   const siteName = localized(
     locale,
     settings.siteNameEn,
     settings.siteNameNl,
     settings.siteName,
   );
-  const headerName = localized(
-    locale,
-    settings.headerNameEn,
-    settings.headerNameNl,
-    settings.headerName,
-  );
-  const heroButtonText = localized(
+  const heroButtonText = localizedOptional(
     locale,
     settings.heroButtonTextEn,
     settings.heroButtonTextNl,
-    settings.heroButtonText ?? "",
   );
-  const heroEyebrow = localized(
+  const heroEyebrow = localizedOptional(
     locale,
     settings.heroEyebrowEn,
     settings.heroEyebrowNl,
-    settings.heroEyebrow,
   );
   const heroTitle = localized(
     locale,
@@ -71,24 +62,22 @@ export function PublicSite({
     settings.heroTitleNl,
     settings.heroTitle,
   );
-  const heroSlogan = localized(
+  const heroSlogan = localizedOptional(
     locale,
     settings.heroSloganEn,
     settings.heroSloganNl,
-    settings.heroSlogan ?? "",
   );
-  const contactText = localized(
+  const contactText = localizedOptional(
     locale,
     settings.contactTextEn,
     settings.contactTextNl,
-    settings.contactText ?? "",
   );
   const visibleSections = [...data.sections]
     .filter((section) => section.isVisible)
     .sort((left, right) => left.sortOrder - right.sortOrder);
-  const navigationSections = visibleSections.filter(
-    (section) => section.showInNavigation,
-  );
+  const heroButtonHref = settings.heroButtonUrl
+    ? localizeHref(settings.heroButtonUrl, locale, settings.languageMode)
+    : "";
 
   function renderSection(key: SectionKey) {
     switch (key) {
@@ -105,14 +94,17 @@ export function PublicSite({
               settings.aboutTitle,
             )}
           >
-            <div className="site-about-copy max-w-3xl text-[var(--muted)]">
+            <MarkdownContent
+              headingOffset={2}
+              className="site-about-copy max-w-3xl text-[var(--muted)]"
+            >
               {localized(
                 locale,
                 settings.aboutTextEn,
                 settings.aboutTextNl,
                 settings.aboutText,
               )}
-            </div>
+            </MarkdownContent>
           </Section>
         );
       case "team":
@@ -203,9 +195,12 @@ export function PublicSite({
             <div className="grid gap-8 lg:grid-cols-[1fr_0.8fr]">
               <div>
                 {contactText ? (
-                  <p className="site-contact-copy max-w-2xl text-[var(--muted)]">
+                  <MarkdownContent
+                    headingOffset={2}
+                    className="site-contact-copy max-w-2xl text-[var(--muted)]"
+                  >
                     {contactText}
-                  </p>
+                  </MarkdownContent>
                 ) : null}
                 <a
                   href={`mailto:${settings.contactEmail}`}
@@ -303,14 +298,7 @@ export function PublicSite({
       lang={locale}
       className="public-site min-h-screen bg-[var(--background)] text-[var(--text)]"
     >
-      <Header
-        name={headerName}
-        logo={logo}
-        logoMode={settings.logoMode}
-        locale={locale}
-        languageMode={settings.languageMode}
-        sections={navigationSections}
-      />
+      <SiteHeader data={data} locale={locale} />
 
       <section className="relative grid min-h-screen overflow-hidden px-4 pb-16 pt-36 text-white sm:px-8 lg:px-12">
         {heroImage ? (
@@ -326,9 +314,11 @@ export function PublicSite({
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.68),rgba(0,0,0,0.32)_48%,rgba(0,0,0,0.08))]" />
         <div className="relative z-10 mx-auto flex w-full max-w-7xl items-end">
           <div className="max-w-4xl">
-            <p className="site-hero-eyebrow mb-5 font-semibold uppercase tracking-[0.18em] text-white/80">
-              {heroEyebrow}
-            </p>
+            {heroEyebrow ? (
+              <p className="site-hero-eyebrow mb-5 font-semibold uppercase tracking-[0.18em] text-white/80">
+                {heroEyebrow}
+              </p>
+            ) : null}
             <h1 className="site-hero-title font-semibold leading-[0.98]">
               {heroTitle}
             </h1>
@@ -337,18 +327,14 @@ export function PublicSite({
                 {heroSlogan}
               </p>
             ) : null}
-            {heroButtonText && settings.heroButtonUrl ? (
-              <Link
-                href={localizeHref(
-                  settings.heroButtonUrl,
-                  locale,
-                  settings.languageMode,
-                )}
+            {heroButtonText && heroButtonHref ? (
+              <PublicLink
+                href={heroButtonHref}
                 className="site-text-sm mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-[#1f1f1f] transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               >
                 {heroButtonText}
                 <ArrowUpRight size={18} />
-              </Link>
+              </PublicLink>
             ) : null}
           </div>
         </div>
@@ -363,98 +349,27 @@ export function PublicSite({
   );
 }
 
-function Header({
-  name,
-  logo,
-  logoMode,
-  locale,
-  languageMode,
-  sections,
+function PublicLink({
+  href,
+  className,
+  children,
 }: {
-  name: string;
-  logo: string | null;
-  logoMode: LogoMode;
-  locale: PublicLocale;
-  languageMode: LanguageMode;
-  sections: SiteData["sections"];
+  href: string;
+  className: string;
+  children: React.ReactNode;
 }) {
-  const text = uiText[locale];
-  const labels: Record<SectionKey, string> = {
-    about: text.about,
-    team: text.team,
-    events: text.events,
-    contact: text.contact,
-    partners: text.partners,
-  };
+  if (href.includes("#")) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-30 border-b border-black/10 bg-[var(--header)] px-4 py-2.5 text-[var(--text)] shadow-sm shadow-black/5 sm:px-8">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-        <Link
-          href={localizeHref("/", locale, languageMode)}
-          aria-label={name}
-          className="flex min-w-0 items-center gap-3 font-semibold"
-        >
-          {logoMode === "wordmark" && logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logo}
-              alt={name}
-              className="h-12 w-auto max-w-[min(55vw,18rem)] object-contain sm:h-14"
-            />
-          ) : logoMode === "wordmark" ? (
-            <span className="site-header-name truncate">{name}</span>
-          ) : (
-            <>
-              <span className="site-logo-icon grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white text-[var(--primary)] shadow-sm ring-1 ring-black/10 sm:h-14 sm:w-14">
-                {logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={logo}
-                    alt=""
-                    className="h-full w-full object-contain p-1.5"
-                  />
-                ) : (
-                  name.slice(0, 1)
-                )}
-              </span>
-              <span className="site-header-name truncate">{name}</span>
-            </>
-          )}
-        </Link>
-        <div className="site-text-sm hidden items-center gap-5 font-medium text-[var(--muted)] md:flex">
-          {sections.map((section) => (
-            <Link
-              key={section.key}
-              href={localizeHref(`#${section.key}`, locale, languageMode)}
-            >
-              {labels[section.key]}
-            </Link>
-          ))}
-        </div>
-        {isMultilingual(languageMode) ? (
-          <div className="site-text-xs flex items-center gap-1 rounded-full border border-black/10 bg-[var(--background)]/75 p-1 font-semibold text-[var(--muted)] shadow-sm">
-            <Languages size={15} className="ml-2 opacity-75" />
-            <Link
-              href={localizeHref("/", "en", languageMode)}
-              hrefLang="en"
-              lang="en"
-              className={`rounded-full px-2.5 py-1 ${locale === "en" ? "bg-[var(--primary)] text-white" : "text-[var(--muted)]"}`}
-            >
-              EN
-            </Link>
-            <Link
-              href={localizeHref("/", "nl", languageMode)}
-              hrefLang="nl"
-              lang="nl"
-              className={`rounded-full px-2.5 py-1 ${locale === "nl" ? "bg-[var(--primary)] text-white" : "text-[var(--muted)]"}`}
-            >
-              NL
-            </Link>
-          </div>
-        ) : null}
-      </nav>
-    </header>
+    <Link href={href} className={className}>
+      {children}
+    </Link>
   );
 }
 
@@ -539,9 +454,9 @@ function EventGroup({
               </div>
               <div className="p-5">
                 <h4 className="site-text-xl font-semibold">{eventTitle}</h4>
-                {localized(locale, event.summaryEn, event.summaryNl, event.summary ?? "") ? (
+                {localizedOptional(locale, event.summaryEn, event.summaryNl) ? (
                   <p className="site-text-sm mt-3 line-clamp-2 leading-relaxed text-[var(--muted)]">
-                    {localized(locale, event.summaryEn, event.summaryNl, event.summary ?? "")}
+                    {localizedOptional(locale, event.summaryEn, event.summaryNl)}
                   </p>
                 ) : null}
                 <div className="site-text-sm mt-5 grid gap-2 text-[var(--muted)]">

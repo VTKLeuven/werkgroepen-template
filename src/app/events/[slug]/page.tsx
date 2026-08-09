@@ -1,8 +1,15 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, MapPin } from "lucide-react";
+import { MarkdownContent } from "@/components/markdown-content";
+import { SiteHeader } from "@/components/site-header";
 import { formatEventDate, mediaUrl } from "@/lib/format";
-import { localized, localizeHref, resolveLocale, uiText } from "@/lib/i18n";
+import {
+  localized,
+  localizedOptional,
+  localizeHref,
+  resolveLocale,
+  uiText,
+} from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { getSiteData } from "@/lib/site";
 
@@ -35,11 +42,10 @@ export default async function EventDetail({
   );
   const text = uiText[locale];
   const eventTitle = localized(locale, event.titleEn, event.titleNl, event.title);
-  const eventSummary = localized(
+  const eventSummary = localizedOptional(
     locale,
     event.summaryEn,
     event.summaryNl,
-    event.summary ?? "",
   );
 
   return (
@@ -52,6 +58,7 @@ export default async function EventDetail({
           "--muted": site.theme.mutedColor,
           "--primary": site.theme.primaryColor,
           "--accent": site.theme.accentColor,
+          "--header": site.theme.headerColor,
           "--body-font-scale": site.theme.bodyFontScale,
           "--heading-font-scale": site.theme.headingFontScale,
           "--hero-title-font-scale": site.theme.heroTitleFontScale,
@@ -59,10 +66,15 @@ export default async function EventDetail({
         } as React.CSSProperties
       }
       lang={locale}
-      className="public-site min-h-screen bg-[var(--background)] px-4 py-8 text-[var(--text)] sm:px-8"
+      className="public-site min-h-screen bg-[var(--background)] text-[var(--text)]"
     >
-      <article className="mx-auto max-w-6xl">
-        <Link
+      <SiteHeader
+        data={site}
+        locale={locale}
+        currentPath={`/events/${event.slug}`}
+      />
+      <article className="mx-auto max-w-6xl px-4 pb-16 pt-32 sm:px-8 sm:pt-36">
+        <a
           href={localizeHref(
             "/#events",
             locale,
@@ -72,7 +84,7 @@ export default async function EventDetail({
         >
           <ArrowLeft size={16} />
           {text.backToEvents}
-        </Link>
+        </a>
         <div className="overflow-hidden rounded-[2rem] bg-[var(--surface)] shadow-xl shadow-black/10">
           <div className="grid lg:min-h-[520px] lg:grid-cols-[0.95fr_1.05fr]">
             <div className="relative min-h-72 bg-[var(--primary)] lg:min-h-full">
@@ -118,14 +130,14 @@ export default async function EventDetail({
             </div>
           </div>
           <div className="border-t border-black/10 p-6 sm:p-10 lg:p-12">
-            <div className="site-detail-body max-w-3xl whitespace-pre-wrap">
+            <MarkdownContent className="site-detail-body max-w-3xl">
               {localized(
                 locale,
                 event.descriptionEn,
                 event.descriptionNl,
                 event.description,
               )}
-            </div>
+            </MarkdownContent>
           </div>
         </div>
       </article>

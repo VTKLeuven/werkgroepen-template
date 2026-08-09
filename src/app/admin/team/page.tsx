@@ -273,7 +273,12 @@ function TeamForm({
           />
         </Field>
         <Field label="Portrait">
-          <input name="image" type="file" accept="image/*" className={inputClass} />
+          <input
+            name="image"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
+            className={inputClass}
+          />
         </Field>
         <label className="flex items-center gap-3 pt-7 text-sm font-semibold">
           <input

@@ -48,7 +48,9 @@ export function localizeHref(
   }
 
   const hashIndex = href.indexOf("#");
-  const hash = hashIndex >= 0 ? href.slice(hashIndex) : "";
+  const fragment =
+    hashIndex >= 0 ? href.slice(hashIndex + 1).split("#", 1)[0] : "";
+  const hash = fragment ? `#${fragment}` : "";
   const pathAndQuery = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
   const queryIndex = pathAndQuery.indexOf("?");
   const path =
@@ -75,6 +77,18 @@ export function localized(
   const preferred = locale === "nl" ? dutch : english;
   const secondary = locale === "nl" ? english : dutch;
   return preferred?.trim() || secondary?.trim() || fallback;
+}
+
+export function localizedOptional(
+  locale: PublicLocale,
+  english: string | null | undefined,
+  dutch: string | null | undefined,
+) {
+  return (
+    (locale === "nl" ? dutch : english)
+      ?.replace(/[\u200B\u2060\uFEFF]/g, "")
+      .trim() ?? ""
+  );
 }
 
 export const uiText = {

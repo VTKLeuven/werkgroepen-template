@@ -3,6 +3,7 @@ import {
   inputClass,
   textareaClass,
 } from "@/components/admin-shell";
+import { MarkdownEditor } from "@/components/markdown-editor";
 
 export type AdminLanguageMode =
   | "bilingual"
@@ -24,6 +25,8 @@ type LocalizedAdminFieldProps = AdminLanguageConfig & {
   fallbackValue?: string | null;
   required?: boolean;
   multiline?: boolean;
+  markdown?: boolean;
+  preserveEmpty?: boolean;
   type?: React.HTMLInputTypeAttribute;
   placeholder?: string;
   className?: string;
@@ -79,6 +82,8 @@ export function LocalizedAdminField({
   fallbackValue = "",
   required = false,
   multiline = false,
+  markdown = false,
+  preserveEmpty = false,
   type = "text",
   placeholder,
   className = "",
@@ -88,19 +93,18 @@ export function LocalizedAdminField({
   if (languageMode !== "bilingual") {
     const activeLocale = getAdminContentLocale(config);
     const inactiveLocale = activeLocale === "en" ? "nl" : "en";
-    const activeValue = valueForLocale(
-      activeLocale,
-      enValue,
-      nlValue,
-      fallbackValue,
-    );
+    const activeValue = preserveEmpty
+      ? rawValueForLocale(activeLocale, enValue, nlValue)
+      : valueForLocale(activeLocale, enValue, nlValue, fallbackValue);
     const inactiveValue = rawValueForLocale(inactiveLocale, enValue, nlValue);
 
     return (
       <div className={className}>
-        <Field label={label}>
+        <Field label={label} composite={markdown}>
           <Control
+            label={label}
             multiline={multiline}
+            markdown={markdown}
             name={`${name}${localeSuffix(activeLocale)}`}
             defaultValue={activeValue}
             required={required}
@@ -119,21 +123,33 @@ export function LocalizedAdminField({
 
   return (
     <div className={`grid gap-4 lg:grid-cols-2 ${className}`}>
-      <Field label={`${label} — English`}>
+      <Field label={`${label} — English`} composite={markdown}>
         <Control
+          label={`${label} — English`}
           multiline={multiline}
+          markdown={markdown}
           name={`${name}En`}
-          defaultValue={valueForLocale("en", enValue, nlValue, fallbackValue)}
+          defaultValue={
+            preserveEmpty
+              ? rawValueForLocale("en", enValue, nlValue)
+              : valueForLocale("en", enValue, nlValue, fallbackValue)
+          }
           required={required}
           type={type}
           placeholder={placeholder}
         />
       </Field>
-      <Field label={`${label} — Nederlands`}>
+      <Field label={`${label} — Nederlands`} composite={markdown}>
         <Control
+          label={`${label} — Nederlands`}
           multiline={multiline}
+          markdown={markdown}
           name={`${name}Nl`}
-          defaultValue={valueForLocale("nl", enValue, nlValue, fallbackValue)}
+          defaultValue={
+            preserveEmpty
+              ? rawValueForLocale("nl", enValue, nlValue)
+              : valueForLocale("nl", enValue, nlValue, fallbackValue)
+          }
           required={required}
           type={type}
           placeholder={placeholder}
@@ -144,20 +160,36 @@ export function LocalizedAdminField({
 }
 
 function Control({
+  label,
   multiline,
+  markdown,
   name,
   defaultValue,
   required,
   type,
   placeholder,
 }: {
+  label: string;
   multiline: boolean;
+  markdown: boolean;
   name: string;
   defaultValue: string;
   required: boolean;
   type: React.HTMLInputTypeAttribute;
   placeholder?: string;
 }) {
+  if (markdown) {
+    return (
+      <MarkdownEditor
+        ariaLabel={label}
+        name={name}
+        defaultValue={defaultValue}
+        required={required}
+        placeholder={placeholder}
+      />
+    );
+  }
+
   if (multiline) {
     return (
       <textarea
