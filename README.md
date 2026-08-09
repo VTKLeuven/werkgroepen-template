@@ -53,6 +53,12 @@ docker compose up --build
 On startup the app container runs `prisma migrate deploy`, seeds the admin user
 and default content, then starts the standalone Next.js server.
 
+After a successful health check, the VM deploy script automatically removes
+stopped containers, unused networks and images, and Docker build cache. Named
+volumes are never pruned, so PostgreSQL data and uploaded media are preserved.
+Set `PRUNE_DOCKER=false` when running `scripts/deploy.sh` manually to skip this
+cleanup for a diagnostic deployment.
+
 **Write `.env` values unquoted.** Compose loads the file with `format: raw` so
 that a `$` in a password survives; the tradeoff is that quotes are not
 stripped, and `ADMIN_PASSWORD="hunter2"` would make the quote characters part

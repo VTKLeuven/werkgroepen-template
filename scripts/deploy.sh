@@ -26,6 +26,7 @@ GIT_TOKEN="${GIT_TOKEN:-}"
 HEALTH_URL="${HEALTH_URL:-http://localhost:3000/}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-30}"
 HEALTH_DELAY="${HEALTH_DELAY:-2}"
+PRUNE_DOCKER="${PRUNE_DOCKER:-true}"
 
 log() { printf '\n=== %s\n' "$*"; }
 
@@ -106,7 +107,23 @@ fi
 trap - ERR
 log "healthy"
 
-# 6. Builds pile up fast on a 64 GB disk. Drop the layers nothing references.
-docker image prune -f >/dev/null 2>&1 || true
+# 6. Builds pile up fast on a 64 GB disk. Only clean up after the new release is
+#    healthy so the rollback path can still use the previous image. This removes
+#    stopped containers, unused networks, all images unused by a container, and
+#    BuildKit cache. It deliberately does NOT pass --volumes: postgres-data and
+#    uploads must survive every deploy.
+if [ "$PRUNE_DOCKER" = true ]; then
+    log "pruning unused Docker data (persistent volumes are kept)"
+    docker system df || true
+    if ! docker system prune -af; then
+        echo "warning: Docker system cleanup failed; deployment is still healthy" >&2
+    fi
+    if ! docker builder prune -af; then
+        echo "warning: Docker build-cache cleanup failed; deployment is still healthy" >&2
+    fi
+    docker system df || true
+else
+    log "skipping Docker cleanup because PRUNE_DOCKER=$PRUNE_DOCKER"
+fi
 
 log "deployed $(git rev-parse --short HEAD) to best"
