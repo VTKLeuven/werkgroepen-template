@@ -6,6 +6,7 @@ import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { requireAdmin } from "@/lib/admin";
 import { slugify } from "@/lib/format";
+import type { HeroTextPosition } from "@/lib/hero-layout";
 import { saveUploadedImage } from "@/lib/media";
 import { prisma } from "@/lib/prisma";
 
@@ -83,6 +84,24 @@ function clampedFloat(
 function colorValue(formData: FormData, key: string, fallback: string) {
   const input = value(formData, key);
   return /^#[0-9a-f]{6}$/i.test(input) ? input.toLowerCase() : fallback;
+}
+
+function heroTextPositionValue(
+  formData: FormData,
+  fallback: HeroTextPosition = "bottomLeft",
+): HeroTextPosition {
+  const input = value(formData, "heroTextPosition");
+  return input === "topLeft" ||
+    input === "topCenter" ||
+    input === "topRight" ||
+    input === "centerLeft" ||
+    input === "center" ||
+    input === "centerRight" ||
+    input === "bottomLeft" ||
+    input === "bottomCenter" ||
+    input === "bottomRight"
+    ? input
+    : fallback;
 }
 
 type CoverDisplayModeValue =
@@ -322,6 +341,10 @@ export async function updateSettings(formData: FormData) {
     heroButtonTextEn: heroButtonText.en || null,
     heroButtonTextNl: heroButtonText.nl || null,
     heroButtonUrl: nullableValue(formData, "heroButtonUrl"),
+    heroTextPosition: heroTextPositionValue(
+      formData,
+      previousSettings?.heroTextPosition ?? "bottomLeft",
+    ),
     aboutTitle: canonical(contentLocale, aboutTitle),
     aboutTitleEn: aboutTitle.en,
     aboutTitleNl: aboutTitle.nl,

@@ -12,6 +12,7 @@ import { MarkdownContent } from "@/components/markdown-content";
 import { CustomPageCover } from "@/components/custom-page-cover";
 import { SiteHeader } from "@/components/site-header";
 import { formatEventDate, mediaUrl } from "@/lib/format";
+import { heroTextPositionClasses } from "@/lib/hero-layout";
 import {
   localized,
   localizedOptional,
@@ -80,6 +81,7 @@ export function PublicSite({
   const heroButtonHref = settings.heroButtonUrl
     ? localizeHref(settings.heroButtonUrl, locale, settings.languageMode)
     : "";
+  const heroPosition = heroTextPositionClasses(settings.heroTextPosition);
 
   function renderSection(key: SectionKey) {
     switch (key) {
@@ -348,9 +350,11 @@ export function PublicSite({
         ) : (
           <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--primary),#263238_55%,var(--accent))]" />
         )}
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.68),rgba(0,0,0,0.32)_48%,rgba(0,0,0,0.08))]" />
-        <div className="relative z-10 mx-auto flex w-full max-w-7xl items-end">
-          <div className="max-w-4xl">
+        <div className={`absolute inset-0 ${heroPosition.overlay}`} />
+        <div
+          className={`relative z-10 mx-auto flex w-full max-w-7xl ${heroPosition.container}`}
+        >
+          <div className={`w-full max-w-4xl ${heroPosition.content}`}>
             {heroEyebrow ? (
               <p className="site-hero-eyebrow mb-5 font-semibold uppercase tracking-[0.18em] text-white/80">
                 {heroEyebrow}
@@ -360,7 +364,9 @@ export function PublicSite({
               {heroTitle}
             </h1>
             {heroSlogan ? (
-              <p className="site-hero-body mt-7 max-w-2xl leading-relaxed text-white/82">
+              <p
+                className={`site-hero-body mt-7 max-w-2xl leading-relaxed text-white/82 ${heroPosition.copy}`}
+              >
                 {heroSlogan}
               </p>
             ) : null}

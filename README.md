@@ -120,7 +120,8 @@ The admin panel manages:
 
 - A single-language or bilingual (English/Dutch) public website
 - Site identity, an icon-with-text or full-width header logo, and the browser icon
-- Hero photo, copy, CTA, and a live desktop/mobile preview
+- Hero photo, copy, CTA, nine-position text placement, and a live
+  desktop/mobile preview
 - Theme colors and adjustable body, heading, and hero font sizes
 - Homepage section visibility and one global header order shared with custom pages
 - Standalone pages with localized titles, optional intro copy, cover photos,

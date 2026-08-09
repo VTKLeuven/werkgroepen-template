@@ -94,6 +94,7 @@ export default async function SettingsPage({
             },
           },
           heroButtonUrl: settings.heroButtonUrl ?? "",
+          heroTextPosition: settings.heroTextPosition,
           contactEmail: settings.contactEmail,
           facebookUrl: settings.facebookUrl ?? "",
           instagramUrl: settings.instagramUrl ?? "",

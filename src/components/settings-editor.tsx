@@ -33,6 +33,11 @@ import {
   type EditableNavigationItem,
 } from "@/components/section-order-board";
 import { updateSettings } from "@/lib/admin-actions";
+import {
+  heroTextPositionClasses,
+  heroTextPositions,
+  type HeroTextPosition,
+} from "@/lib/hero-layout";
 
 type Locale = "en" | "nl";
 type LanguageMode = "bilingual" | "englishOnly" | "dutchOnly";
@@ -57,6 +62,7 @@ type EditorInitial = {
   logoMode: LogoMode;
   copy: LocalizedCopy;
   heroButtonUrl: string;
+  heroTextPosition: HeroTextPosition;
   contactEmail: string;
   facebookUrl: string;
   instagramUrl: string;
@@ -105,6 +111,9 @@ export function SettingsEditor({
   );
   const [previewLocale, setPreviewLocale] = useState<Locale>(defaultLocale);
   const [logoMode, setLogoMode] = useState<LogoMode>(initial.logoMode);
+  const [heroTextPosition, setHeroTextPosition] = useState(
+    initial.heroTextPosition,
+  );
   const [copy, setCopy] = useState(initial.copy);
   const [colors, setColors] = useState(initial.colors);
   const [typography, setTypography] = useState(initial.typography);
@@ -137,6 +146,7 @@ export function SettingsEditor({
   const activePreviewLocale =
     languageChoice === "single" ? defaultLocale : previewLocale;
   const visibleAboutImageUrl = removeAboutImage ? null : aboutImageUrl;
+  const heroPosition = heroTextPositionClasses(heroTextPosition);
 
   function updateCopy(key: CopyKey, locale: Locale, nextValue: string) {
     setDirty(true);
@@ -344,6 +354,51 @@ export function SettingsEditor({
                 previewFile(file, setHeroUrl);
               }}
             />
+            <fieldset>
+              <legend className="text-sm font-semibold text-[#3a352f]">
+                Text position
+              </legend>
+              <p className="mt-1 text-xs leading-5 text-[#6f6860]">
+                Choose where the headline, supporting text, and button sit on
+                the hero photo.
+              </p>
+              <div className="mt-3 grid w-fit grid-cols-3 gap-2 rounded-2xl border border-black/10 bg-[#f5f1e8] p-2">
+                {heroTextPositions.map((position) => (
+                  <label
+                    key={position.value}
+                    title={position.label}
+                    className={`grid h-11 w-11 cursor-pointer place-items-center rounded-xl border transition ${
+                      heroTextPosition === position.value
+                        ? "border-[#006d77] bg-white text-[#006d77] shadow-sm ring-2 ring-[#006d77]/15"
+                        : "border-black/10 bg-white/55 text-[#9b948a] hover:border-black/20 hover:bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="heroTextPosition"
+                      value={position.value}
+                      checked={heroTextPosition === position.value}
+                      onChange={() => setHeroTextPosition(position.value)}
+                      aria-label={position.label}
+                      className="sr-only"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-6 w-6 rounded-md border border-current/25 p-1 ${
+                        heroTextPositionClasses(position.value).container
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs font-semibold text-[#006d77]">
+                {heroTextPositions.find(
+                  (position) => position.value === heroTextPosition,
+                )?.label}
+              </p>
+            </fieldset>
             <LocalizedControl
               label="Eyebrow"
               field="heroEyebrow"
@@ -722,7 +777,9 @@ export function SettingsEditor({
             </div>
 
             <div
-              className={`relative flex items-end overflow-hidden p-5 text-white ${
+              className={`relative flex overflow-hidden p-5 text-white ${
+                heroPosition.container
+              } ${
                 device === "mobile" ? "min-h-[390px]" : "min-h-[360px]"
               }`}
               style={{
@@ -739,8 +796,10 @@ export function SettingsEditor({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : null}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-black/10" />
-              <div className="relative z-10 max-w-[92%]">
+              <div className={`absolute inset-0 ${heroPosition.overlay}`} />
+              <div
+                className={`relative z-10 w-full max-w-[92%] ${heroPosition.content}`}
+              >
                 {copy.heroEyebrow[activePreviewLocale] ? (
                   <p
                     className="mb-2 font-semibold uppercase tracking-[0.16em] text-white/75"
@@ -762,7 +821,7 @@ export function SettingsEditor({
                 </h2>
                 {copy.heroSlogan[activePreviewLocale] ? (
                   <p
-                    className="mt-3 max-w-md leading-relaxed text-white/80"
+                    className={`mt-3 max-w-md leading-relaxed text-white/80 ${heroPosition.copy}`}
                     style={{ fontSize: `${0.76 * typography.heroBodyFontScale}rem` }}
                   >
                     {copy.heroSlogan[activePreviewLocale]}

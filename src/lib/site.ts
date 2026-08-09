@@ -122,6 +122,7 @@ export const defaultSettings = {
   heroButtonTextEn: "See our events",
   heroButtonTextNl: "Bekijk onze events",
   heroButtonUrl: "#events",
+  heroTextPosition: "bottomLeft" as const,
   aboutTitle: "About us",
   aboutTitleEn: "About us",
   aboutTitleNl: "Over ons",

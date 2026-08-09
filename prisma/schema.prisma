@@ -28,6 +28,18 @@ enum LogoMode {
   wordmark
 }
 
+enum HeroTextPosition {
+  topLeft
+  topCenter
+  topRight
+  centerLeft
+  center
+  centerRight
+  bottomLeft
+  bottomCenter
+  bottomRight
+}
+
 enum CoverDisplayMode {
   full
   flexible
@@ -103,6 +115,7 @@ model SiteSettings {
   heroButtonTextEn       String?
   heroButtonTextNl       String?
   heroButtonUrl          String?
+  heroTextPosition       HeroTextPosition @default(bottomLeft)
   aboutTitle             String           @default("About us")
   aboutTitleEn           String           @default("About us")
   aboutTitleNl           String           @default("Over ons")
