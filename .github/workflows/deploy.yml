@@ -1,0 +1,40 @@
+name: Deploy to best
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys touch the same directory at once. Queue them instead of
+# cancelling, so a superseded run still finishes cleanly rather than dying halfway
+# through a compose up.
+concurrency:
+  group: deploy-best
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, best]
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Deploy
+        env:
+          DEPLOY_DIR: /home/bm/werkgroepen-template
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          TARGET_SHA: ${{ github.sha }}
+          GIT_TOKEN: ${{ github.token }}
+          # docker-compose.yml publishes the app on 3000. Caddy on proxy-vm targets
+          # port 80 of this VM, so if the server maps 80 instead, change this to
+          # http://localhost/ (see the note in scripts/deploy.sh).
+          HEALTH_URL: http://localhost:3000/
+        run: bash scripts/deploy.sh
