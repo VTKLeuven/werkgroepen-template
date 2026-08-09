@@ -51,6 +51,7 @@ import {
 type Locale = "en" | "nl";
 type LanguageMode = "bilingual" | "englishOnly" | "dutchOnly";
 type LogoMode = "iconWithText" | "wordmark";
+export type SettingsEditorView = "general" | "homepage" | "header";
 type CopyKey =
   | "siteName"
   | "headerName"
@@ -114,9 +115,13 @@ type EditorInitial = {
 export function SettingsEditor({
   initial,
   saved,
+  view,
+  returnTo,
 }: {
   initial: EditorInitial;
   saved: boolean;
+  view: SettingsEditorView;
+  returnTo: "/admin/settings" | "/admin/homepage" | "/admin/header";
 }) {
   const [languageChoice, setLanguageChoice] = useState<"single" | "bilingual">(
     initial.languageMode === "bilingual" ? "bilingual" : "single",
@@ -236,28 +241,35 @@ export function SettingsEditor({
       }}
     >
       <input type="hidden" name="languageMode" value={languageMode} />
+      <input type="hidden" name="returnTo" value={returnTo} />
       <div className="grid min-w-0 gap-6">
         <div className="sticky top-3 z-30 flex justify-end">
           <div className="inline-flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-lg shadow-black/10 backdrop-blur">
             <span
               title={
-                dirty
+                view === "header"
+                  ? "Header navigation changes save automatically."
+                  : dirty
                   ? "There are unsaved changes."
                   : saved
                     ? "Your changes were saved."
                     : "No unsaved changes."
               }
               className={`inline-flex items-center gap-1.5 px-1 text-xs font-semibold ${
-                dirty ? "text-amber-700" : "text-emerald-700"
+                view !== "header" && dirty
+                  ? "text-amber-700"
+                  : "text-emerald-700"
               }`}
               aria-live="polite"
             >
               <span
                 className={`h-2 w-2 rounded-full ${
-                  dirty ? "bg-amber-500" : "bg-emerald-500"
+                  view !== "header" && dirty
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
                 }`}
               />
-              {dirty ? "Unsaved" : "Saved"}
+              {view === "header" ? "Auto-saves" : dirty ? "Unsaved" : "Saved"}
             </span>
             <button
               type="button"
@@ -267,10 +279,11 @@ export function SettingsEditor({
               {showPreview ? <Eye size={14} /> : <Monitor size={14} />}
               {showPreview ? "Hide preview" : "Preview"}
             </button>
-            <SaveButton />
+            {view !== "header" ? <SaveButton /> : null}
           </div>
         </div>
 
+        {view === "general" ? (
         <SettingsSection
           icon={Languages}
           title="Languages"
@@ -318,10 +331,12 @@ export function SettingsEditor({
             </Field>
           </div>
         </SettingsSection>
+        ) : null}
 
+        {view === "general" ? (
         <SettingsSection
           icon={PanelTop}
-          title="Brand and header"
+          title="Brand"
           description="Set the name visitors see and choose how your logo behaves in the header."
         >
           <div className="grid gap-4">
@@ -409,7 +424,9 @@ export function SettingsEditor({
             </div>
           </div>
         </SettingsSection>
+        ) : null}
 
+        {view === "homepage" ? (
         <SettingsSection
           icon={ImageIcon}
           title="Hero"
@@ -541,7 +558,9 @@ export function SettingsEditor({
             </Field>
           </div>
         </SettingsSection>
+        ) : null}
 
+        {view === "homepage" ? (
         <SettingsSection
           icon={Contact}
           title="About section"
@@ -636,7 +655,9 @@ export function SettingsEditor({
             )}
           </div>
         </SettingsSection>
+        ) : null}
 
+        {view === "homepage" ? (
         <SettingsSection
           icon={Contact}
           title="Contact and social links"
@@ -704,7 +725,9 @@ export function SettingsEditor({
             </div>
           </div>
         </SettingsSection>
+        ) : null}
 
+        {view === "homepage" ? (
         <SettingsSection
           icon={LayoutList}
           title="Homepage sections"
@@ -716,7 +739,9 @@ export function SettingsEditor({
             onItemsChange={updateHomepageItems}
           />
         </SettingsSection>
+        ) : null}
 
+        {view === "header" ? (
         <SettingsSection
           icon={Menu}
           title="Header navigation"
@@ -732,7 +757,9 @@ export function SettingsEditor({
             onItemsChange={setHeaderNavigationItems}
           />
         </SettingsSection>
+        ) : null}
 
+        {view === "general" ? (
         <SettingsSection
           icon={Palette}
           title="Colors and typography"
@@ -840,6 +867,7 @@ export function SettingsEditor({
             />
           </div>
         </SettingsSection>
+        ) : null}
 
       </div>
 

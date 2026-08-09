@@ -75,7 +75,7 @@ export default async function AdminPage() {
             <QuickLink
               href="/admin/settings"
               title="Customize website"
-              description="Brand, hero, colors, type and page sections"
+              description="Languages, brand, colors and typography"
               icon={Palette}
             />
             <QuickLink

@@ -4,7 +4,7 @@ import { getSettingsEditorData } from "@/lib/settings-editor-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage({
+export default async function HomepageSettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ saved?: string }>;
@@ -13,13 +13,13 @@ export default async function SettingsPage({
 
   return (
     <AdminShell
-      title="General settings"
-      description="Manage the website languages, identity, colors, and typography."
+      title="Homepage"
+      description="Edit the hero, About and contact content, then arrange the homepage sections."
     >
       <SettingsEditor
         {...editorData}
-        view="general"
-        returnTo="/admin/settings"
+        view="homepage"
+        returnTo="/admin/homepage"
       />
     </AdminShell>
   );

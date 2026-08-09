@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { FilePlus2, Monitor, Smartphone } from "lucide-react";
+import {
+  ChevronDown,
+  FilePlus2,
+  ImageIcon,
+  Monitor,
+  Smartphone,
+} from "lucide-react";
 import {
   Field,
   buttonClass,
@@ -198,13 +204,25 @@ export function CustomPageForm({
           multiline
         />
 
-        <div className="rounded-3xl border border-black/10 p-4 sm:p-5">
-          <div className="mb-4">
-            <h4 className="text-sm font-semibold">Cover photo</h4>
-            <p className="mt-1 text-xs leading-5 text-[#6f6860]">
-              Choose how the image should behave on the public page.
-            </p>
-          </div>
+        <details className="group overflow-hidden rounded-2xl border border-black/10 bg-white">
+          <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#006d77]/8 text-[#006d77]">
+              <ImageIcon size={17} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Cover photo</span>
+              <span className="mt-0.5 block truncate text-xs text-[#6f6860]">
+                {page?.coverName
+                  ? `Current: ${page.coverName}`
+                  : "Optional image, placement, crop, and border settings"}
+              </span>
+            </span>
+            <ChevronDown
+              size={17}
+              className="shrink-0 text-[#8b847b] transition group-open:rotate-180"
+            />
+          </summary>
+          <div className="border-t border-black/5 p-4 sm:p-5">
           <input
             ref={coverInputRef}
             name="cover"
@@ -213,11 +231,6 @@ export function CustomPageForm({
             className={inputClass}
             onChange={(event) => selectCover(event.target.files?.[0])}
           />
-          {page?.coverName ? (
-            <p className="mt-2 truncate text-xs text-[#6f6860]">
-              Current: {page.coverName}
-            </p>
-          ) : null}
           {page?.coverMediaId ? (
             <label className="mt-3 flex items-center gap-2 text-xs font-medium text-[#6f6860]">
               <input
@@ -307,7 +320,8 @@ export function CustomPageForm({
               frameShape={coverPlacement === "above" ? "wide" : "side"}
             />
           </div>
-        </div>
+          </div>
+        </details>
 
         <details className="rounded-2xl border border-black/10 p-4">
           <summary className="cursor-pointer text-sm font-semibold">

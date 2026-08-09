@@ -4,7 +4,7 @@ import { getSettingsEditorData } from "@/lib/settings-editor-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage({
+export default async function HeaderSettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ saved?: string }>;
@@ -13,13 +13,13 @@ export default async function SettingsPage({
 
   return (
     <AdminShell
-      title="General settings"
-      description="Manage the website languages, identity, colors, and typography."
+      title="Header navigation"
+      description="Choose which homepage sections and custom pages appear in the header, and arrange their global order."
     >
       <SettingsEditor
         {...editorData}
-        view="general"
-        returnTo="/admin/settings"
+        view="header"
+        returnTo="/admin/header"
       />
     </AdminShell>
   );

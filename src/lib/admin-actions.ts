@@ -233,11 +233,19 @@ export async function updateSettings(formData: FormData) {
   ]);
   const languageMode = languageModeValue(formData);
   const requestedLocale: SupportedLocale =
-    value(formData, "defaultLocale") === "nl" ? "nl" : "en";
+    formData.has("defaultLocale")
+      ? value(formData, "defaultLocale") === "nl"
+        ? "nl"
+        : "en"
+      : previousSettings?.defaultLocale ?? "en";
   const defaultLocale = primaryLocale(languageMode, requestedLocale);
   const contentLocale = primaryLocale(languageMode, defaultLocale);
   const logoMode: "wordmark" | "iconWithText" =
-    value(formData, "logoMode") === "wordmark" ? "wordmark" : "iconWithText";
+    formData.has("logoMode")
+      ? value(formData, "logoMode") === "wordmark"
+        ? "wordmark"
+        : "iconWithText"
+      : previousSettings?.logoMode ?? "iconWithText";
 
   const siteName = localizedFormValues(formData, "siteName", {
     en: previousSettings?.siteNameEn,
@@ -340,7 +348,9 @@ export async function updateSettings(formData: FormData) {
     heroButtonText: canonical(contentLocale, heroButtonText) || null,
     heroButtonTextEn: heroButtonText.en || null,
     heroButtonTextNl: heroButtonText.nl || null,
-    heroButtonUrl: nullableValue(formData, "heroButtonUrl"),
+    heroButtonUrl: formData.has("heroButtonUrl")
+      ? nullableValue(formData, "heroButtonUrl")
+      : previousSettings?.heroButtonUrl ?? null,
     heroTextPosition: heroTextPositionValue(
       formData,
       previousSettings?.heroTextPosition ?? "bottomLeft",
@@ -426,10 +436,18 @@ export async function updateSettings(formData: FormData) {
     contactText: canonical(contentLocale, contactText) || null,
     contactTextEn: contactText.en || null,
     contactTextNl: contactText.nl || null,
-    contactEmail: value(formData, "contactEmail"),
-    facebookUrl: nullableValue(formData, "facebookUrl"),
-    instagramUrl: nullableValue(formData, "instagramUrl"),
-    linkedinUrl: nullableValue(formData, "linkedinUrl"),
+    contactEmail: formData.has("contactEmail")
+      ? value(formData, "contactEmail")
+      : previousSettings?.contactEmail ?? "",
+    facebookUrl: formData.has("facebookUrl")
+      ? nullableValue(formData, "facebookUrl")
+      : previousSettings?.facebookUrl ?? null,
+    instagramUrl: formData.has("instagramUrl")
+      ? nullableValue(formData, "instagramUrl")
+      : previousSettings?.instagramUrl ?? null,
+    linkedinUrl: formData.has("linkedinUrl")
+      ? nullableValue(formData, "linkedinUrl")
+      : previousSettings?.linkedinUrl ?? null,
     logoMediaId:
       formData.get("removeLogo") === "on"
         ? null
@@ -513,7 +531,15 @@ export async function updateSettings(formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePath("/admin/settings");
-  redirect("/admin/settings?saved=1");
+  revalidatePath("/admin/homepage");
+  revalidatePath("/admin/header");
+  const requestedReturnTo = value(formData, "returnTo");
+  const returnTo =
+    requestedReturnTo === "/admin/homepage" ||
+    requestedReturnTo === "/admin/header"
+      ? requestedReturnTo
+      : "/admin/settings";
+  redirect(`${returnTo}?saved=1`);
 }
 
 export async function saveTeamMember(formData: FormData) {

@@ -6,7 +6,9 @@ import {
   CalendarDays,
   Files,
   Handshake,
+  House,
   LayoutDashboard,
+  Menu,
   Settings,
   Users,
   type LucideIcon,
@@ -14,7 +16,9 @@ import {
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/settings", label: "General", icon: Settings },
+  { href: "/admin/homepage", label: "Homepage", icon: House },
+  { href: "/admin/header", label: "Header", icon: Menu },
   { href: "/admin/pages", label: "Pages", icon: Files },
   { href: "/admin/team", label: "Team", icon: Users },
   { href: "/admin/events", label: "Events", icon: CalendarDays },
