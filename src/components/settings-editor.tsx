@@ -24,8 +24,8 @@ import {
 import { MarkdownContent } from "@/components/markdown-content";
 import { MarkdownEditor } from "@/components/markdown-editor";
 import {
-  SectionOrderBoard,
-  type EditableSection,
+  NavigationOrderBoard,
+  type EditableNavigationItem,
 } from "@/components/section-order-board";
 import { updateSettings } from "@/lib/admin-actions";
 
@@ -77,7 +77,8 @@ type EditorInitial = {
     heroTitleFontScale: number;
     heroBodyFontScale: number;
   };
-  sections: EditableSection[];
+  navigationItems: EditableNavigationItem[];
+  customPageLinks: { title: string; href: string }[];
 };
 
 export function SettingsEditor({
@@ -139,8 +140,7 @@ export function SettingsEditor({
   return (
     <form
       action={updateSettings}
-      encType="multipart/form-data"
-      className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(390px,0.72fr)]"
+      className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.72fr)]"
       onInput={(event) => {
         if (!(event.target as HTMLElement).closest("[data-auto-save]")) {
           setDirty(true);
@@ -209,10 +209,10 @@ export function SettingsEditor({
         </Panel>
 
         <Panel
-          title="Page sections"
-          description="Choose what appears on the homepage, what is listed in the menu, and in which order."
+          title="Homepage and header order"
+          description="Manage homepage sections and place every header item—including custom pages—in one global order."
         >
-          <SectionOrderBoard sections={initial.sections} />
+          <NavigationOrderBoard items={initial.navigationItems} />
         </Panel>
 
         <Panel
@@ -363,13 +363,30 @@ export function SettingsEditor({
                 updateCopy("heroButtonText", locale, value)
               }
             />
-            <Field label="Button link">
+            <Field label="Button destination">
               <input
                 name="heroButtonUrl"
                 defaultValue={initial.heroButtonUrl}
                 className={inputClass}
-                placeholder="#events or https://…"
+                list="hero-destination-options"
+                placeholder="#events, /pages/… or https://…"
               />
+              <datalist id="hero-destination-options">
+                <option value="#about">About section</option>
+                <option value="#team">Team section</option>
+                <option value="#events">Events section</option>
+                <option value="#partners">Partners section</option>
+                <option value="#contact">Contact section</option>
+                {initial.customPageLinks.map((page) => (
+                  <option key={page.href} value={page.href}>
+                    {page.title}
+                  </option>
+                ))}
+              </datalist>
+              <p className="text-xs font-normal leading-5 text-[#6f6860]">
+                Choose a homepage section or published custom page, or paste an
+                external URL.
+              </p>
             </Field>
           </div>
         </Panel>
@@ -574,8 +591,8 @@ export function SettingsEditor({
       </div>
 
       <aside className="min-w-0 xl:sticky xl:top-6">
-        <div className="rounded-[2rem] bg-[#211f1c] p-3 shadow-xl shadow-black/15">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-2 pt-1 text-white">
+        <div className="flex max-h-[calc(100vh-3rem)] flex-col rounded-[2rem] bg-[#211f1c] p-3 shadow-xl shadow-black/15">
+          <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 px-2 pt-1 text-white">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
                 Live preview
@@ -601,7 +618,7 @@ export function SettingsEditor({
           </div>
 
           <div
-            className={`mx-auto overflow-hidden rounded-[1.35rem] bg-white transition-all ${
+            className={`mx-auto min-h-0 w-full flex-1 overflow-y-auto overscroll-contain rounded-[1.35rem] bg-white transition-all ${
               device === "mobile" ? "max-w-[290px]" : "max-w-full"
             }`}
           >
@@ -729,7 +746,7 @@ export function SettingsEditor({
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 px-2 pb-1">
+          <div className="mt-3 flex shrink-0 items-center justify-between gap-3 px-2 pb-1">
             <p className="text-xs leading-5 text-white/55">
               Preview changes are local until you save.
             </p>
@@ -979,9 +996,9 @@ function ColorField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-semibold text-[#3a352f]">
+    <label className="grid min-w-0 gap-2 text-sm font-semibold text-[#3a352f]">
       <span>{label}</span>
-      <span className="flex items-center gap-2 rounded-2xl border border-black/10 bg-white p-2">
+      <span className="flex min-w-0 items-center gap-2 overflow-hidden rounded-2xl border border-black/10 bg-white p-2">
         <input
           type="color"
           value={value}

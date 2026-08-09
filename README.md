@@ -116,9 +116,10 @@ The admin panel manages:
 - Site identity, an icon-with-text or full-width header logo, and the browser icon
 - Hero photo, copy, CTA, and a live desktop/mobile preview
 - Theme colors and adjustable body, heading, and hero font sizes
-- Homepage section visibility, navigation placement, and visual ordering
+- Homepage section visibility and one global header order shared with custom pages
 - Standalone pages with localized titles, optional intro copy, cover photos,
-  draft/published state, header placement, and visual ordering
+  live preview, full/fit/fill/manual-crop image layouts, draft/published state,
+  and header placement
 - Markdown editing and preview for page content, About, contact text, and event
   descriptions, including inline image uploads
 - Optional hero eyebrow and supporting copy (empty translations stay empty)

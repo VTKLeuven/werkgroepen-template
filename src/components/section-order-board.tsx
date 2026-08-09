@@ -6,58 +6,81 @@ import {
   ArrowUp,
   Eye,
   EyeOff,
+  FileText,
   GripVertical,
   Menu,
 } from "lucide-react";
-import { updateSiteSections } from "@/lib/admin-actions";
+import { updateNavigation } from "@/lib/admin-actions";
 
 export type EditableSection = {
+  type: "section";
   key: "about" | "team" | "events" | "contact" | "partners";
+  sortOrder: number;
   isVisible: boolean;
   showInNavigation: boolean;
 };
+
+export type EditableCustomPageNavigation = {
+  type: "page";
+  id: string;
+  title: string;
+  slug: string;
+  sortOrder: number;
+  isPublished: boolean;
+  showInNavigation: boolean;
+};
+
+export type EditableNavigationItem =
+  | EditableSection
+  | EditableCustomPageNavigation;
 
 const sectionText: Record<
   EditableSection["key"],
   { title: string; description: string }
 > = {
-  about: {
-    title: "About",
-    description: "Your introduction and story",
-  },
-  team: {
-    title: "Team",
-    description: "Current academic-year team",
-  },
-  events: {
-    title: "Events",
-    description: "Upcoming and previous events",
-  },
-  contact: {
-    title: "Contact",
-    description: "Email and social links",
-  },
-  partners: {
-    title: "Partners",
-    description: "Partner logos and links",
-  },
+  about: { title: "About", description: "Your introduction and story" },
+  team: { title: "Team", description: "Current academic-year team" },
+  events: { title: "Events", description: "Upcoming and previous events" },
+  contact: { title: "Contact", description: "Email and social links" },
+  partners: { title: "Partners", description: "Partner logos and links" },
 };
 
-export function SectionOrderBoard({ sections }: { sections: EditableSection[] }) {
-  const [items, setItems] = useState(sections);
-  const [draggedKey, setDraggedKey] = useState<EditableSection["key"] | null>(
-    null,
-  );
+function itemId(item: EditableNavigationItem) {
+  return item.type === "section" ? `section:${item.key}` : `page:${item.id}`;
+}
+
+export function NavigationOrderBoard({
+  items: initialItems,
+}: {
+  items: EditableNavigationItem[];
+}) {
+  const [items, setItems] = useState(initialItems);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  function persist(next: EditableSection[]) {
+  function persist(next: EditableNavigationItem[]) {
     const previous = items;
     setItems(next);
     setSaveError(false);
     startTransition(async () => {
       try {
-        await updateSiteSections(next);
+        await updateNavigation(
+          next.map((item) =>
+            item.type === "section"
+              ? {
+                  type: item.type,
+                  key: item.key,
+                  isVisible: item.isVisible,
+                  showInNavigation: item.showInNavigation,
+                }
+              : {
+                  type: item.type,
+                  id: item.id,
+                  showInNavigation: item.showInNavigation,
+                },
+          ),
+        );
       } catch {
         setItems(previous);
         setSaveError(true);
@@ -75,20 +98,27 @@ export function SectionOrderBoard({ sections }: { sections: EditableSection[] })
     ) {
       return;
     }
+
     const next = [...items];
-    const [section] = next.splice(currentIndex, 1);
-    next.splice(targetIndex, 0, section);
+    const [item] = next.splice(currentIndex, 1);
+    next.splice(targetIndex, 0, item);
     persist(next);
   }
 
-  function update(
-    key: EditableSection["key"],
-    changes: Partial<EditableSection>,
+  function updateItem(
+    id: string,
+    changes: Partial<Pick<EditableNavigationItem, "showInNavigation">> & {
+      isVisible?: boolean;
+    },
   ) {
     persist(
-      items.map((section) => {
-        if (section.key !== key) return section;
-        const next = { ...section, ...changes };
+      items.map((item) => {
+        if (itemId(item) !== id) return item;
+        if (item.type === "page") {
+          return { ...item, showInNavigation: Boolean(changes.showInNavigation) };
+        }
+
+        const next = { ...item, ...changes };
         if (!next.isVisible) next.showInNavigation = false;
         return next;
       }),
@@ -98,24 +128,31 @@ export function SectionOrderBoard({ sections }: { sections: EditableSection[] })
   return (
     <div data-auto-save>
       <div className="grid gap-2">
-        {items.map((section, index) => {
-          const text = sectionText[section.key];
+        {items.map((item, index) => {
+          const id = itemId(item);
+          const isSection = item.type === "section";
+          const title = isSection ? sectionText[item.key].title : item.title;
+          const description = isSection
+            ? sectionText[item.key].description
+            : `/pages/${item.slug}`;
+          const isAvailable = isSection ? item.isVisible : item.isPublished;
+
           return (
             <div
-              key={section.key}
+              key={id}
               draggable={!isPending}
-              onDragStart={() => setDraggedKey(section.key)}
+              onDragStart={() => setDraggedId(id)}
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
-                if (!draggedKey) return;
+                if (!draggedId) return;
                 move(
-                  items.findIndex((item) => item.key === draggedKey),
+                  items.findIndex((candidate) => itemId(candidate) === draggedId),
                   index,
                 );
               }}
-              onDragEnd={() => setDraggedKey(null)}
-              className={`grid gap-3 rounded-2xl border p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center ${
-                section.isVisible
+              onDragEnd={() => setDraggedId(null)}
+              className={`grid gap-3 rounded-2xl border p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center ${
+                isAvailable
                   ? "border-black/10 bg-white"
                   : "border-black/5 bg-[#f5f1e8] text-[#777067]"
               }`}
@@ -125,48 +162,61 @@ export function SectionOrderBoard({ sections }: { sections: EditableSection[] })
               </span>
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-sm font-semibold">
-                  {section.isVisible ? <Eye size={15} /> : <EyeOff size={15} />}
-                  {text.title}
+                  {isSection ? (
+                    item.isVisible ? <Eye size={15} /> : <EyeOff size={15} />
+                  ) : (
+                    <FileText size={15} />
+                  )}
+                  <span className="truncate">{title}</span>
+                  {!isSection ? (
+                    <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-[#777067]">
+                      {item.isPublished ? "Page" : "Draft page"}
+                    </span>
+                  ) : null}
                 </p>
-                <p className="mt-0.5 text-xs text-[#8b847b]">{text.description}</p>
+                <p className="mt-0.5 truncate text-xs text-[#8b847b]">
+                  {description}
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {isSection ? (
+                  <label className="flex items-center gap-1.5 rounded-full bg-[#f5f1e8] px-3 py-1.5 text-xs font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={item.isVisible}
+                      disabled={isPending}
+                      onChange={(event) =>
+                        updateItem(id, { isVisible: event.target.checked })
+                      }
+                      className="h-4 w-4 accent-[#006d77]"
+                    />
+                    Show
+                  </label>
+                ) : null}
                 <label className="flex items-center gap-1.5 rounded-full bg-[#f5f1e8] px-3 py-1.5 text-xs font-semibold">
                   <input
                     type="checkbox"
-                    checked={section.isVisible}
-                    disabled={isPending}
+                    checked={item.showInNavigation}
+                    disabled={(isSection && !item.isVisible) || isPending}
                     onChange={(event) =>
-                      update(section.key, { isVisible: event.target.checked })
-                    }
-                    className="h-4 w-4 accent-[#006d77]"
-                  />
-                  Show
-                </label>
-                <label className="flex items-center gap-1.5 rounded-full bg-[#f5f1e8] px-3 py-1.5 text-xs font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={section.showInNavigation}
-                    disabled={!section.isVisible || isPending}
-                    onChange={(event) =>
-                      update(section.key, {
+                      updateItem(id, {
                         showInNavigation: event.target.checked,
                       })
                     }
                     className="h-4 w-4 accent-[#006d77]"
                   />
                   <Menu size={13} />
-                  Menu
+                  Header
                 </label>
                 <MoveButton
                   direction="up"
-                  label={`Move ${text.title} up`}
+                  label={`Move ${title} up`}
                   disabled={index === 0 || isPending}
                   onClick={() => move(index, index - 1)}
                 />
                 <MoveButton
                   direction="down"
-                  label={`Move ${text.title} down`}
+                  label={`Move ${title} down`}
                   disabled={index === items.length - 1 || isPending}
                   onClick={() => move(index, index + 1)}
                 />
@@ -176,14 +226,16 @@ export function SectionOrderBoard({ sections }: { sections: EditableSection[] })
         })}
       </div>
       <p
-        className={`mt-3 text-sm ${saveError ? "font-semibold text-red-700" : "text-[#6f6860]"}`}
+        className={`mt-3 text-sm ${
+          saveError ? "font-semibold text-red-700" : "text-[#6f6860]"
+        }`}
         aria-live="polite"
       >
         {saveError
-          ? "The page structure could not be saved. Your previous setup was restored."
+          ? "The page and header order could not be saved. Your previous setup was restored."
           : isPending
-          ? "Saving page structure…"
-          : "Visibility, menu placement, and order save automatically."}
+            ? "Saving page and header order…"
+            : "Homepage visibility, header placement, and the global order save automatically."}
       </p>
     </div>
   );

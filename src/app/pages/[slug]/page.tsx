@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { MarkdownContent } from "@/components/markdown-content";
+import { CustomPageCover } from "@/components/custom-page-cover";
 import { SiteHeader } from "@/components/site-header";
 import { mediaUrl } from "@/lib/format";
 import {
@@ -154,10 +155,15 @@ export default async function CustomPageRoute({
           </header>
 
           {cover ? (
-            <div className="mt-10 aspect-[16/7] overflow-hidden rounded-[2rem] bg-[var(--surface)] shadow-xl shadow-black/10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={cover} alt={title} className="h-full w-full object-cover" />
-            </div>
+            <CustomPageCover
+              src={cover}
+              alt={title}
+              mode={page.coverDisplayMode}
+              positionX={page.coverPositionX}
+              positionY={page.coverPositionY}
+              zoom={page.coverZoom}
+              className="mt-10 rounded-[2rem] shadow-xl shadow-black/10"
+            />
           ) : null}
 
           {content ? (

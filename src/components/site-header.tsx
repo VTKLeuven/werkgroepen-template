@@ -32,9 +32,9 @@ export function SiteHeader({
     settings.headerName,
   );
   const logo = mediaUrl(settings.logoMediaId);
-  const sections = [...data.sections]
-    .filter((section) => section.isVisible && section.showInNavigation)
-    .sort((left, right) => left.sortOrder - right.sortOrder);
+  const sections = data.sections.filter(
+    (section) => section.isVisible && section.showInNavigation,
+  );
   const pages = data.customPages.filter((page) => page.showInNavigation);
   const labels: Record<SectionKey, string> = {
     about: text.about,
@@ -43,22 +43,39 @@ export function SiteHeader({
     contact: text.contact,
     partners: text.partners,
   };
+  const navigationItems = [
+    ...sections.map((section) => ({
+      type: "section" as const,
+      sortOrder: section.sortOrder,
+      section,
+    })),
+    ...pages.map((page) => ({
+      type: "page" as const,
+      sortOrder: page.sortOrder,
+      page,
+    })),
+  ].sort((left, right) => left.sortOrder - right.sortOrder);
   const navigation = (
     <>
-      {sections.map((section) => (
-        <a
-          key={section.key}
-          href={localizeHref(
-            `/#${section.key}`,
-            locale,
-            settings.languageMode,
-          )}
-          className="whitespace-nowrap transition hover:text-[var(--text)]"
-        >
-          {labels[section.key]}
-        </a>
-      ))}
-      {pages.map((page) => {
+      {navigationItems.map((item) => {
+        if (item.type === "section") {
+          const { section } = item;
+          return (
+            <a
+              key={`section:${section.key}`}
+              href={localizeHref(
+                `/#${section.key}`,
+                locale,
+                settings.languageMode,
+              )}
+              className="whitespace-nowrap transition hover:text-[var(--text)]"
+            >
+              {labels[section.key]}
+            </a>
+          );
+        }
+
+        const { page } = item;
         const href = localizeHref(
           `/pages/${page.slug}`,
           locale,
@@ -150,7 +167,7 @@ export function SiteHeader({
           </div>
         ) : null}
 
-        {sections.length > 0 || pages.length > 0 ? (
+        {navigationItems.length > 0 ? (
           <MobileSiteMenu>{navigation}</MobileSiteMenu>
         ) : null}
       </nav>

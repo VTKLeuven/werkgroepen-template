@@ -172,7 +172,7 @@ function EventForm({
   languageConfig: AdminLanguageConfig;
 }) {
   return (
-    <form action={saveEvent} className="grid gap-4" encType="multipart/form-data">
+    <form action={saveEvent} className="grid gap-4">
       {event ? <input type="hidden" name="id" value={event.id} /> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <LocalizedAdminField

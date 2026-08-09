@@ -15,7 +15,7 @@ export function AdminShell({
   return (
     <main className="min-h-screen bg-[#f5f1e8] text-[#211f1c]">
       <header className="border-b border-black/10 bg-white/80 px-4 py-4 backdrop-blur sm:px-8">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#006d77]">
               Admin
@@ -44,7 +44,7 @@ export function AdminShell({
           </div>
         </div>
       </header>
-      <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[220px_1fr]">
+      <div className="mx-auto grid max-w-[1800px] gap-5 px-4 py-6 sm:px-8 lg:grid-cols-[9.5rem_minmax(0,1fr)]">
         <aside className="min-w-0">
           <AdminNav />
         </aside>
@@ -87,7 +87,7 @@ export function Field({
 }) {
   if (composite) {
     return (
-      <div className="grid gap-2 text-sm font-semibold text-[#3a352f]">
+      <div className="grid min-w-0 gap-2 text-sm font-semibold text-[#3a352f]">
         <span>{label}</span>
         {children}
       </div>
@@ -95,7 +95,7 @@ export function Field({
   }
 
   return (
-    <label className="grid gap-2 text-sm font-semibold text-[#3a352f]">
+    <label className="grid min-w-0 gap-2 text-sm font-semibold text-[#3a352f]">
       <span>{label}</span>
       {children}
     </label>
@@ -103,10 +103,10 @@ export function Field({
 }
 
 export const inputClass =
-  "min-h-11 rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm outline-none transition focus:border-[#006d77] focus:ring-2 focus:ring-[#006d77]/20";
+  "min-h-11 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm outline-none transition focus:border-[#006d77] focus:ring-2 focus:ring-[#006d77]/20";
 
 export const textareaClass =
-  "min-h-32 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-[#006d77] focus:ring-2 focus:ring-[#006d77]/20";
+  "min-h-32 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-[#006d77] focus:ring-2 focus:ring-[#006d77]/20";
 
 export const buttonClass =
   "inline-flex items-center justify-center rounded-full bg-[#006d77] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-lg";

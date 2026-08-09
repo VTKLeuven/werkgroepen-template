@@ -85,6 +85,21 @@ function colorValue(formData: FormData, key: string, fallback: string) {
   return /^#[0-9a-f]{6}$/i.test(input) ? input.toLowerCase() : fallback;
 }
 
+type CoverDisplayModeValue = "full" | "fit" | "fill" | "crop";
+
+function coverDisplayModeValue(
+  formData: FormData,
+  fallback: CoverDisplayModeValue = "fill",
+): CoverDisplayModeValue {
+  const input = value(formData, "coverDisplayMode");
+  return input === "full" ||
+    input === "fit" ||
+    input === "crop" ||
+    input === "fill"
+    ? input
+    : fallback;
+}
+
 async function currentLanguageConfiguration() {
   const settings = await prisma.siteSettings.findUnique({
     where: { id: "site" },
@@ -541,7 +556,7 @@ export async function saveCustomPage(formData: FormData) {
   await requireAdmin();
 
   const id = nullableValue(formData, "id");
-  const [language, previousPage, lastPage] = await Promise.all([
+  const [language, previousPage, lastPage, lastSection] = await Promise.all([
     currentLanguageConfiguration(),
     id
       ? prisma.customPage.findUnique({
@@ -557,6 +572,10 @@ export async function saveCustomPage(formData: FormData) {
             contentEn: true,
             contentNl: true,
             coverMediaId: true,
+            coverDisplayMode: true,
+            coverPositionX: true,
+            coverPositionY: true,
+            coverZoom: true,
             sortOrder: true,
           },
         })
@@ -564,6 +583,12 @@ export async function saveCustomPage(formData: FormData) {
     id
       ? Promise.resolve(null)
       : prisma.customPage.findFirst({
+          orderBy: { sortOrder: "desc" },
+          select: { sortOrder: true },
+        }),
+    id
+      ? Promise.resolve(null)
+      : prisma.siteSection.findFirst({
           orderBy: { sortOrder: "desc" },
           select: { sortOrder: true },
         }),
@@ -606,6 +631,8 @@ export async function saveCustomPage(formData: FormData) {
   const requestedSlug =
     nullableValue(formData, "slug") ?? previousPage?.slug ?? publicTitle;
   let slug = await availableCustomPageSlug(requestedSlug, id);
+  const nextNavigationOrder =
+    Math.max(lastPage?.sortOrder ?? -1, lastSection?.sortOrder ?? -1) + 1;
   const data = {
     slug,
     titleEn: title.en,
@@ -616,14 +643,38 @@ export async function saveCustomPage(formData: FormData) {
     supportingTextNl: supportingText.nl || null,
     contentEn: content.en,
     contentNl: content.nl,
-    sortOrder: previousPage?.sortOrder ?? (lastPage?.sortOrder ?? -1) + 1,
+    coverDisplayMode: coverDisplayModeValue(
+      formData,
+      previousPage?.coverDisplayMode ?? "fill",
+    ),
+    coverPositionX: clampedFloat(
+      formData,
+      "coverPositionX",
+      previousPage?.coverPositionX ?? 50,
+      0,
+      100,
+    ),
+    coverPositionY: clampedFloat(
+      formData,
+      "coverPositionY",
+      previousPage?.coverPositionY ?? 50,
+      0,
+      100,
+    ),
+    coverZoom: clampedFloat(
+      formData,
+      "coverZoom",
+      previousPage?.coverZoom ?? 1,
+      1,
+      3,
+    ),
+    sortOrder: previousPage?.sortOrder ?? nextNavigationOrder,
     isPublished: formData.get("isPublished") === "on",
     showInNavigation: formData.get("showInNavigation") === "on",
     coverMediaId:
-      cover?.id ??
-      (formData.get("removeCover") === "on"
+      formData.get("removeCover") === "on"
         ? null
-        : previousPage?.coverMediaId ?? null),
+        : cover?.id ?? previousPage?.coverMediaId ?? null,
   };
 
   for (let attempt = 0; ; attempt += 1) {
@@ -663,31 +714,6 @@ export async function deleteCustomPage(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/admin/pages");
   revalidatePath(`/pages/${page.slug}`);
-}
-
-export async function updateCustomPageOrder(orderedIds: string[]) {
-  await requireAdmin();
-  const uniqueIds = [...new Set(orderedIds)].filter(Boolean);
-  const storedPages = await prisma.customPage.findMany({
-    select: { id: true },
-  });
-  const storedIds = new Set(storedPages.map((page) => page.id));
-
-  if (
-    uniqueIds.length !== storedIds.size ||
-    uniqueIds.some((id) => !storedIds.has(id))
-  ) {
-    throw new Error("The page order is incomplete. Refresh and try again.");
-  }
-
-  await prisma.$transaction(
-    uniqueIds.map((id, index) =>
-      prisma.customPage.update({ where: { id }, data: { sortOrder: index } }),
-    ),
-  );
-
-  revalidatePath("/");
-  revalidatePath("/admin/pages");
 }
 
 export async function saveEvent(formData: FormData) {
@@ -885,13 +911,20 @@ export async function updatePartnerOrder(orderedIds: string[]) {
 
 type SiteSectionKey = "about" | "team" | "events" | "contact" | "partners";
 
-export async function updateSiteSections(
-  sections: {
-    key: SiteSectionKey;
-    isVisible: boolean;
-    showInNavigation: boolean;
-  }[],
-) {
+type NavigationItemInput =
+  | {
+      type: "section";
+      key: SiteSectionKey;
+      isVisible: boolean;
+      showInNavigation: boolean;
+    }
+  | {
+      type: "page";
+      id: string;
+      showInNavigation: boolean;
+    };
+
+export async function updateNavigation(items: NavigationItemInput[]) {
   await requireAdmin();
   const allowedKeys = new Set<SiteSectionKey>([
     "about",
@@ -900,33 +933,63 @@ export async function updateSiteSections(
     "contact",
     "partners",
   ]);
-  const validSections = sections.filter(
-    (section, index, items) =>
-      allowedKeys.has(section.key) &&
-      items.findIndex((candidate) => candidate.key === section.key) === index,
+  const sectionItems = items.filter(
+    (item): item is Extract<NavigationItemInput, { type: "section" }> =>
+      item.type === "section",
   );
+  const pageItems = items.filter(
+    (item): item is Extract<NavigationItemInput, { type: "page" }> =>
+      item.type === "page",
+  );
+  const storedPages = await prisma.customPage.findMany({ select: { id: true } });
+  const storedPageIds = new Set(storedPages.map((page) => page.id));
+  const submittedSectionKeys = new Set(sectionItems.map((item) => item.key));
+  const submittedPageIds = new Set(pageItems.map((item) => item.id));
+
+  if (
+    items.length !== sectionItems.length + pageItems.length ||
+    sectionItems.length !== allowedKeys.size ||
+    submittedSectionKeys.size !== allowedKeys.size ||
+    sectionItems.some((item) => !allowedKeys.has(item.key)) ||
+    pageItems.length !== storedPageIds.size ||
+    submittedPageIds.size !== storedPageIds.size ||
+    pageItems.some((item) => !storedPageIds.has(item.id))
+  ) {
+    throw new Error("The navigation order is incomplete. Refresh and try again.");
+  }
 
   await prisma.$transaction(
-    validSections.map((section, index) =>
-      prisma.siteSection.upsert({
-        where: { key: section.key },
+    items.map((item, index) => {
+      if (item.type === "page") {
+        return prisma.customPage.update({
+          where: { id: item.id },
+          data: {
+            sortOrder: index,
+            showInNavigation: Boolean(item.showInNavigation),
+          },
+        });
+      }
+
+      return prisma.siteSection.upsert({
+        where: { key: item.key },
         update: {
           sortOrder: index,
-          isVisible: Boolean(section.isVisible),
+          isVisible: Boolean(item.isVisible),
           showInNavigation:
-            Boolean(section.isVisible) && Boolean(section.showInNavigation),
+            Boolean(item.isVisible) && Boolean(item.showInNavigation),
         },
         create: {
-          key: section.key,
+          key: item.key,
           sortOrder: index,
-          isVisible: Boolean(section.isVisible),
+          isVisible: Boolean(item.isVisible),
           showInNavigation:
-            Boolean(section.isVisible) && Boolean(section.showInNavigation),
+            Boolean(item.isVisible) && Boolean(item.showInNavigation),
         },
-      }),
-    ),
+      });
+    }),
   );
 
   revalidatePath("/");
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/pages");
 }

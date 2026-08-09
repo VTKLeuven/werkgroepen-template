@@ -155,7 +155,7 @@ function PartnerForm({
   languageConfig: AdminLanguageConfig;
 }) {
   return (
-    <form action={savePartner} className="grid gap-4" encType="multipart/form-data">
+    <form action={savePartner} className="grid gap-4">
       {partner ? <input type="hidden" name="id" value={partner.id} /> : null}
       <LocalizedAdminField
         label="Name"
