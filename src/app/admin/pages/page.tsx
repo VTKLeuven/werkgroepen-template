@@ -1,37 +1,59 @@
 import Link from "next/link";
-import { ExternalLink, FilePlus2 } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { AdminShell, Panel } from "@/components/admin-shell";
 import {
-  AdminShell,
-  Field,
-  Panel,
-  buttonClass,
-  inputClass,
-} from "@/components/admin-shell";
-import {
-  LocalizedAdminField,
   getAdminLanguageConfig,
   getAdminLocalizedValue,
-  type AdminLanguageConfig,
 } from "@/components/admin-localized-field";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
-import { PageOrderBoard } from "@/components/page-order-board";
-import { deleteCustomPage, saveCustomPage } from "@/lib/admin-actions";
+import {
+  CustomPageForm,
+  type CustomPagePreviewConfig,
+} from "@/components/custom-page-form";
+import { deleteCustomPage } from "@/lib/admin-actions";
 import { requireAdmin } from "@/lib/admin";
 import { mediaUrl } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { defaultTheme } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export default async function PagesPage() {
   await requireAdmin();
-  const [pages, siteSettings] = await Promise.all([
+  const [pages, siteSettings, themeSettings] = await Promise.all([
     prisma.customPage.findMany({
       include: { coverMedia: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
-    prisma.siteSettings.findUnique({ where: { id: "site" } }),
+    prisma.siteSettings.findUnique({
+      where: { id: "site" },
+      include: { logoMedia: true },
+    }),
+    prisma.themeSettings.findUnique({ where: { id: "theme" } }),
   ]);
   const languageConfig = getAdminLanguageConfig(siteSettings);
+  const theme = themeSettings ?? defaultTheme;
+  const previewConfig: CustomPagePreviewConfig = {
+    headerName: {
+      en: siteSettings?.headerNameEn ?? siteSettings?.siteNameEn ?? "Website",
+      nl: siteSettings?.headerNameNl ?? siteSettings?.siteNameNl ?? "Website",
+    },
+    logoMode: siteSettings?.logoMode ?? "iconWithText",
+    logoUrl: mediaUrl(siteSettings?.logoMediaId),
+    colors: {
+      background: theme.backgroundColor,
+      surface: theme.surfaceColor,
+      text: theme.textColor,
+      muted: theme.mutedColor,
+      primary: theme.primaryColor,
+      accent: theme.accentColor,
+      header: theme.headerColor,
+    },
+    typography: {
+      body: theme.bodyFontScale,
+      heading: theme.headingFontScale,
+    },
+  };
 
   return (
     <AdminShell
@@ -39,38 +61,16 @@ export default async function PagesPage() {
       description="Create standalone content pages and choose which ones appear in the website header."
     >
       <div className="grid gap-6">
-        <Panel
-          title="Header order"
-          description="Published pages marked for the header appear after the homepage links in this order."
-        >
-          <PageOrderBoard
-            key={pages
-              .map(
-                (page) =>
-                  `${page.id}:${page.updatedAt.toISOString()}:${page.isPublished}:${page.showInNavigation}`,
-              )
-              .join(",")}
-            pages={pages.map((page) => ({
-              id: page.id,
-              title: getAdminLocalizedValue(
-                languageConfig,
-                page.titleEn,
-                page.titleNl,
-              ),
-              slug: page.slug,
-              isPublished: page.isPublished,
-              showInNavigation: page.showInNavigation,
-            }))}
-          />
-        </Panel>
-
         <Panel title="Add page">
           <details className="rounded-2xl border border-black/10 p-4">
             <summary className="cursor-pointer text-sm font-semibold">
               Add a new page
             </summary>
             <div className="mt-5">
-              <PageForm languageConfig={languageConfig} />
+              <CustomPageForm
+                languageConfig={languageConfig}
+                previewConfig={previewConfig}
+              />
             </div>
           </details>
         </Panel>
@@ -131,7 +131,31 @@ export default async function PagesPage() {
                     </div>
                   </summary>
                   <div className="mt-5">
-                    <PageForm page={page} languageConfig={languageConfig} />
+                    <CustomPageForm
+                      page={{
+                        id: page.id,
+                        slug: page.slug,
+                        titleEn: page.titleEn,
+                        titleNl: page.titleNl,
+                        eyebrowEn: page.eyebrowEn,
+                        eyebrowNl: page.eyebrowNl,
+                        supportingTextEn: page.supportingTextEn,
+                        supportingTextNl: page.supportingTextNl,
+                        contentEn: page.contentEn,
+                        contentNl: page.contentNl,
+                        coverMediaId: page.coverMediaId,
+                        coverName: page.coverMedia?.originalName ?? null,
+                        coverUrl: mediaUrl(page.coverMediaId),
+                        coverDisplayMode: page.coverDisplayMode,
+                        coverPositionX: page.coverPositionX,
+                        coverPositionY: page.coverPositionY,
+                        coverZoom: page.coverZoom,
+                        isPublished: page.isPublished,
+                        showInNavigation: page.showInNavigation,
+                      }}
+                      languageConfig={languageConfig}
+                      previewConfig={previewConfig}
+                    />
                     <form action={deleteCustomPage} className="mt-3">
                       <input type="hidden" name="id" value={page.id} />
                       <ConfirmDeleteButton itemName={`page “${title}”`} />
@@ -144,134 +168,5 @@ export default async function PagesPage() {
         </Panel>
       </div>
     </AdminShell>
-  );
-}
-
-function PageForm({
-  page,
-  languageConfig,
-}: {
-  page?: {
-    id: string;
-    slug: string;
-    titleEn: string;
-    titleNl: string;
-    eyebrowEn: string | null;
-    eyebrowNl: string | null;
-    supportingTextEn: string | null;
-    supportingTextNl: string | null;
-    contentEn: string;
-    contentNl: string;
-    coverMediaId: string | null;
-    coverMedia: { originalName: string } | null;
-    isPublished: boolean;
-    showInNavigation: boolean;
-  };
-  languageConfig: AdminLanguageConfig;
-}) {
-  return (
-    <form action={saveCustomPage} encType="multipart/form-data" className="grid gap-5">
-      {page ? <input type="hidden" name="id" value={page.id} /> : null}
-      <LocalizedAdminField
-        label="Title"
-        name="title"
-        enValue={page?.titleEn}
-        nlValue={page?.titleNl}
-        required
-        {...languageConfig}
-      />
-      <LocalizedAdminField
-        label="Eyebrow (optional)"
-        name="eyebrow"
-        enValue={page?.eyebrowEn}
-        nlValue={page?.eyebrowNl}
-        preserveEmpty
-        placeholder="Small label above the title"
-        {...languageConfig}
-      />
-      <LocalizedAdminField
-        label="Supporting text (optional)"
-        name="supportingText"
-        enValue={page?.supportingTextEn}
-        nlValue={page?.supportingTextNl}
-        preserveEmpty
-        multiline
-        placeholder="A short introduction below the title"
-        {...languageConfig}
-      />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Field label="Cover photo (optional)">
-          <input
-            name="cover"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
-            className={inputClass}
-          />
-          {page?.coverMedia ? (
-            <p className="mt-2 text-xs text-[#6f6860]">
-              Current: {page.coverMedia.originalName}
-            </p>
-          ) : null}
-          {page?.coverMediaId ? (
-            <label className="mt-2 flex items-center gap-2 text-xs font-medium text-[#6f6860]">
-              <input name="removeCover" type="checkbox" className="h-4 w-4" />
-              Remove the current cover photo
-            </label>
-          ) : null}
-        </Field>
-        <details className="rounded-2xl border border-black/10 p-4">
-          <summary className="cursor-pointer text-sm font-semibold">
-            Advanced URL setting
-          </summary>
-          <div className="mt-4">
-            <Field label="Page address">
-              <input
-                name="slug"
-                defaultValue={page?.slug ?? ""}
-                className={inputClass}
-                placeholder="Generated from the title when empty"
-              />
-            </Field>
-            <p className="mt-2 text-xs leading-5 text-[#6f6860]">
-              The public URL will start with /pages/. Duplicate addresses get a
-              number automatically.
-            </p>
-          </div>
-        </details>
-      </div>
-      <LocalizedAdminField
-        label="Content"
-        name="content"
-        enValue={page?.contentEn}
-        nlValue={page?.contentNl}
-        preserveEmpty
-        markdown
-        {...languageConfig}
-      />
-      <div className="flex flex-wrap gap-5">
-        <label className="flex items-center gap-3 text-sm font-semibold">
-          <input
-            name="isPublished"
-            type="checkbox"
-            defaultChecked={page?.isPublished ?? false}
-            className="h-5 w-5"
-          />
-          Published
-        </label>
-        <label className="flex items-center gap-3 text-sm font-semibold">
-          <input
-            name="showInNavigation"
-            type="checkbox"
-            defaultChecked={page?.showInNavigation ?? false}
-            className="h-5 w-5"
-          />
-          Show in website header
-        </label>
-      </div>
-      <button className={`${buttonClass} w-fit gap-2`}>
-        <FilePlus2 size={16} />
-        {page ? "Save page" : "Add page"}
-      </button>
-    </form>
   );
 }

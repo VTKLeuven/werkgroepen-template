@@ -2,6 +2,8 @@ import { SettingsEditor } from "@/components/settings-editor";
 import { AdminShell } from "@/components/admin-shell";
 import { requireAdmin } from "@/lib/admin";
 import { mediaUrl } from "@/lib/format";
+import { localized, resolveLocale } from "@/lib/i18n";
+import { prisma } from "@/lib/prisma";
 import { getSiteData } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +14,46 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string }>;
 }) {
   await requireAdmin();
-  const [{ settings, theme, sections }, params] = await Promise.all([
-    getSiteData(),
-    searchParams,
-  ]);
+  const [{ settings, theme, sections, customPages }, params, allCustomPages] =
+    await Promise.all([
+      getSiteData(),
+      searchParams,
+      prisma.customPage.findMany({
+        select: {
+          id: true,
+          slug: true,
+          titleEn: true,
+          titleNl: true,
+          sortOrder: true,
+          isPublished: true,
+          showInNavigation: true,
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      }),
+    ]);
+  const adminLocale = resolveLocale(
+    undefined,
+    settings.defaultLocale,
+    settings.languageMode,
+  );
+  const navigationItems = [
+    ...sections.map((section) => ({
+      type: "section" as const,
+      key: section.key,
+      sortOrder: section.sortOrder,
+      isVisible: section.isVisible,
+      showInNavigation: section.showInNavigation,
+    })),
+    ...allCustomPages.map((page) => ({
+      type: "page" as const,
+      id: page.id,
+      title: localized(adminLocale, page.titleEn, page.titleNl, page.slug),
+      slug: page.slug,
+      sortOrder: page.sortOrder,
+      isPublished: page.isPublished,
+      showInNavigation: page.showInNavigation,
+    })),
+  ].sort((left, right) => left.sortOrder - right.sortOrder);
 
   return (
     <AdminShell
@@ -81,10 +119,10 @@ export default async function SettingsPage({
             heroTitleFontScale: theme.heroTitleFontScale,
             heroBodyFontScale: theme.heroBodyFontScale,
           },
-          sections: sections.map((section) => ({
-            key: section.key,
-            isVisible: section.isVisible,
-            showInNavigation: section.showInNavigation,
+          navigationItems,
+          customPageLinks: customPages.map((page) => ({
+            title: localized(adminLocale, page.titleEn, page.titleNl, page.slug),
+            href: `/pages/${page.slug}`,
           })),
         }}
       />

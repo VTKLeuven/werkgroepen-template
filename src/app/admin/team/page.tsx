@@ -241,7 +241,7 @@ function TeamForm({
   );
 
   return (
-    <form action={saveTeamMember} className="grid gap-4" encType="multipart/form-data">
+    <form action={saveTeamMember} className="grid gap-4">
       {member ? <input type="hidden" name="id" value={member.id} /> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Field label="Name">
