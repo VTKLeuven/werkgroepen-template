@@ -8,6 +8,9 @@ const allowedImageTypes = new Set([
   "image/webp",
   "image/gif",
   "image/svg+xml",
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
+  "image/ico",
 ]);
 
 export function uploadDir() {
@@ -21,11 +24,15 @@ export function mediaPath(fileName: string) {
 export async function saveUploadedImage(file: File | null, alt?: string) {
   if (!file || file.size === 0) return null;
 
-  if (!allowedImageTypes.has(file.type)) {
-    throw new Error("Only JPEG, PNG, WebP, GIF, and SVG images are supported.");
+  const extension = file.name.match(/\.[a-z0-9]+$/i)?.[0].toLowerCase() || ".bin";
+  const mimeType = file.type || (extension === ".ico" ? "image/x-icon" : "");
+
+  if (!allowedImageTypes.has(mimeType)) {
+    throw new Error(
+      "Only JPEG, PNG, WebP, GIF, SVG, and ICO images are supported.",
+    );
   }
 
-  const extension = file.name.match(/\.[a-z0-9]+$/i)?.[0].toLowerCase() || ".bin";
   const fileName = `${randomUUID()}${extension}`;
   const bytes = Buffer.from(await file.arrayBuffer());
 
@@ -36,7 +43,7 @@ export async function saveUploadedImage(file: File | null, alt?: string) {
     data: {
       fileName,
       originalName: file.name,
-      mimeType: file.type,
+      mimeType,
       size: file.size,
       alt,
     },

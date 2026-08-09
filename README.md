@@ -112,12 +112,18 @@ Uploaded logos and photos are stored in the `uploads` Docker volume mounted at
 
 The admin panel manages:
 
-- Site identity, header logo, hero photo, slogan, and CTA
-- English and Dutch public copy, plus the default public language
-- Theme colors
+- A single-language or bilingual (English/Dutch) public website
+- Site identity, an icon-with-text or full-width header logo, and the browser icon
+- Hero photo, copy, CTA, and a live desktop/mobile preview
+- Theme colors and adjustable body, heading, and hero font sizes
+- Homepage section visibility, navigation placement, and visual ordering
 - About and contact text
 - Email, Facebook, Instagram, and LinkedIn links
-- Team members with portrait, function, sort order, and profile URL
+- Team members with portrait, function, visual ordering, and profile URL
 - Academic years for team archives, with one current year shown publicly
 - Events with image, time, location, summary, detail page, and published state
-- Partners with logo, website URL, sort order, and visibility
+- Partners with logo, website URL, visual ordering, and visibility
+
+Settings and all content forms automatically adapt to the configured language
+mode. Existing translations are kept when a site temporarily switches to a
+single language.

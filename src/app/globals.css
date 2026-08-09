@@ -37,6 +37,116 @@ img {
   max-width: 100%;
 }
 
+.public-site {
+  font-size: calc(1rem * var(--body-font-scale, 1));
+}
+
+.site-text-xs {
+  font-size: calc(0.75rem * var(--body-font-scale, 1));
+}
+
+.site-text-sm {
+  font-size: calc(0.875rem * var(--body-font-scale, 1));
+}
+
+.site-text-base {
+  font-size: calc(1rem * var(--body-font-scale, 1));
+}
+
+.site-text-xl {
+  font-size: calc(1.25rem * var(--body-font-scale, 1));
+}
+
+.site-header-name {
+  font-size: calc(1.125rem * var(--body-font-scale, 1));
+}
+
+.site-logo-icon {
+  font-size: calc(1.125rem * var(--body-font-scale, 1));
+}
+
+.site-hero-eyebrow {
+  font-size: calc(0.875rem * var(--hero-body-font-scale, 1));
+}
+
+.site-hero-title {
+  font-size: calc(3rem * var(--hero-title-font-scale, 1));
+}
+
+.site-hero-body {
+  font-size: calc(1.125rem * var(--hero-body-font-scale, 1));
+}
+
+.site-section-title {
+  font-size: calc(2.25rem * var(--heading-font-scale, 1));
+  line-height: 1.08;
+}
+
+.site-subheading {
+  font-size: calc(1.5rem * var(--heading-font-scale, 1));
+  line-height: 1.2;
+}
+
+.site-card-initial,
+.site-event-image-title {
+  font-size: calc(2.25rem * var(--heading-font-scale, 1));
+  line-height: 1.15;
+}
+
+.site-about-copy {
+  font-size: calc(1.5rem * var(--body-font-scale, 1));
+  line-height: 1.65;
+}
+
+.site-contact-copy {
+  font-size: calc(1.25rem * var(--body-font-scale, 1));
+  line-height: 1.8;
+}
+
+.site-contact-email {
+  font-size: calc(1.875rem * var(--heading-font-scale, 1));
+  line-height: 1.25;
+}
+
+.site-detail-title {
+  font-size: calc(2.25rem * var(--heading-font-scale, 1));
+}
+
+.site-detail-summary {
+  font-size: calc(1.5rem * var(--body-font-scale, 1));
+  line-height: 1.65;
+}
+
+.site-detail-body {
+  font-size: calc(1.125rem * var(--body-font-scale, 1));
+  line-height: 1.8;
+}
+
+@media (min-width: 640px) {
+  .site-header-name {
+    font-size: calc(1.25rem * var(--body-font-scale, 1));
+  }
+
+  .site-hero-title {
+    font-size: calc(4.5rem * var(--hero-title-font-scale, 1));
+  }
+
+  .site-hero-body {
+    font-size: calc(1.25rem * var(--hero-body-font-scale, 1));
+  }
+
+  .site-section-title,
+  .site-detail-title {
+    font-size: calc(3.75rem * var(--heading-font-scale, 1));
+  }
+}
+
+@media (min-width: 1024px) {
+  .site-hero-title {
+    font-size: calc(6rem * var(--hero-title-font-scale, 1));
+  }
+}
+
 ::selection {
   background: color-mix(in srgb, var(--primary, #006d77) 28%, transparent);
 }

@@ -18,14 +18,80 @@ function nullableValue(formData: FormData, key: string) {
   return input.length > 0 ? input : null;
 }
 
-function intValue(formData: FormData, key: string) {
-  const input = Number.parseInt(value(formData, key), 10);
-  return Number.isFinite(input) ? input : 0;
-}
-
 function dateValue(formData: FormData, key: string) {
   const input = value(formData, key);
   return input ? new Date(input) : null;
+}
+
+type SupportedLocale = "en" | "nl";
+type SupportedLanguageMode = "bilingual" | "englishOnly" | "dutchOnly";
+
+function languageModeValue(formData: FormData): SupportedLanguageMode {
+  const input = value(formData, "languageMode");
+  if (input === "englishOnly" || input === "dutchOnly") return input;
+  return "bilingual";
+}
+
+function primaryLocale(
+  languageMode: SupportedLanguageMode,
+  defaultLocale: SupportedLocale,
+): SupportedLocale {
+  if (languageMode === "englishOnly") return "en";
+  if (languageMode === "dutchOnly") return "nl";
+  return defaultLocale;
+}
+
+function localizedFormValues(
+  formData: FormData,
+  key: string,
+  previous?: { en?: string | null; nl?: string | null },
+) {
+  const englishKey = `${key}En`;
+  const dutchKey = `${key}Nl`;
+
+  return {
+    en: formData.has(englishKey) ? value(formData, englishKey) : previous?.en ?? "",
+    nl: formData.has(dutchKey) ? value(formData, dutchKey) : previous?.nl ?? "",
+  };
+}
+
+function canonical<T>(
+  locale: SupportedLocale,
+  localizedValue: { en: T; nl: T },
+) {
+  return locale === "nl" ? localizedValue.nl : localizedValue.en;
+}
+
+function clampedFloat(
+  formData: FormData,
+  key: string,
+  fallback: number,
+  minimum = 0.8,
+  maximum = 1.3,
+) {
+  const input = Number.parseFloat(value(formData, key));
+  if (!Number.isFinite(input)) return fallback;
+  return Math.min(maximum, Math.max(minimum, input));
+}
+
+function colorValue(formData: FormData, key: string, fallback: string) {
+  const input = value(formData, key);
+  return /^#[0-9a-f]{6}$/i.test(input) ? input.toLowerCase() : fallback;
+}
+
+async function currentLanguageConfiguration() {
+  const settings = await prisma.siteSettings.findUnique({
+    where: { id: "site" },
+    select: { languageMode: true, defaultLocale: true },
+  });
+  const languageMode = settings?.languageMode ?? "bilingual";
+  const defaultLocale = settings?.defaultLocale ?? "en";
+
+  return {
+    languageMode,
+    defaultLocale,
+    primaryLocale: primaryLocale(languageMode, defaultLocale),
+  };
 }
 
 async function currentAcademicYearId() {
@@ -77,125 +143,192 @@ export async function logoutAction() {
 export async function updateSettings(formData: FormData) {
   await requireAdmin();
 
-  const logo = await saveUploadedImage(
-    formData.get("logo") as File | null,
-    `${value(formData, "siteNameEn")} logo`,
-  );
-  const hero = await saveUploadedImage(
-    formData.get("hero") as File | null,
-    `${value(formData, "siteNameEn")} hero`,
-  );
-  const defaultLocale = value(formData, "defaultLocale") === "nl" ? "nl" : "en";
+  const [previousSettings, previousTheme] = await Promise.all([
+    prisma.siteSettings.findUnique({ where: { id: "site" } }),
+    prisma.themeSettings.findUnique({ where: { id: "theme" } }),
+  ]);
+  const languageMode = languageModeValue(formData);
+  const requestedLocale: SupportedLocale =
+    value(formData, "defaultLocale") === "nl" ? "nl" : "en";
+  const defaultLocale = primaryLocale(languageMode, requestedLocale);
+  const contentLocale = primaryLocale(languageMode, defaultLocale);
+  const logoMode: "wordmark" | "iconWithText" =
+    value(formData, "logoMode") === "wordmark" ? "wordmark" : "iconWithText";
+
+  const siteName = localizedFormValues(formData, "siteName", {
+    en: previousSettings?.siteNameEn,
+    nl: previousSettings?.siteNameNl,
+  });
+  const headerName = localizedFormValues(formData, "headerName", {
+    en: previousSettings?.headerNameEn,
+    nl: previousSettings?.headerNameNl,
+  });
+  const heroEyebrow = localizedFormValues(formData, "heroEyebrow", {
+    en: previousSettings?.heroEyebrowEn,
+    nl: previousSettings?.heroEyebrowNl,
+  });
+  const heroTitle = localizedFormValues(formData, "heroTitle", {
+    en: previousSettings?.heroTitleEn,
+    nl: previousSettings?.heroTitleNl,
+  });
+  const heroSlogan = localizedFormValues(formData, "heroSlogan", {
+    en: previousSettings?.heroSloganEn,
+    nl: previousSettings?.heroSloganNl,
+  });
+  const heroButtonText = localizedFormValues(formData, "heroButtonText", {
+    en: previousSettings?.heroButtonTextEn,
+    nl: previousSettings?.heroButtonTextNl,
+  });
+  const aboutTitle = localizedFormValues(formData, "aboutTitle", {
+    en: previousSettings?.aboutTitleEn,
+    nl: previousSettings?.aboutTitleNl,
+  });
+  const aboutText = localizedFormValues(formData, "aboutText", {
+    en: previousSettings?.aboutTextEn,
+    nl: previousSettings?.aboutTextNl,
+  });
+  const contactTitle = localizedFormValues(formData, "contactTitle", {
+    en: previousSettings?.contactTitleEn,
+    nl: previousSettings?.contactTitleNl,
+  });
+  const contactText = localizedFormValues(formData, "contactText", {
+    en: previousSettings?.contactTextEn,
+    nl: previousSettings?.contactTextNl,
+  });
+
+  const publicSiteName = canonical(contentLocale, siteName).trim();
+  if (!publicSiteName) throw new Error("The website name cannot be empty.");
+  if (!canonical(contentLocale, heroTitle).trim()) {
+    throw new Error("The hero headline cannot be empty.");
+  }
+  if (!canonical(contentLocale, aboutText).trim()) {
+    throw new Error("The about text cannot be empty.");
+  }
+
+  const [logo, favicon, hero] = await Promise.all([
+    saveUploadedImage(
+      formData.get("logo") as File | null,
+      `${publicSiteName} logo`,
+    ),
+    saveUploadedImage(
+      formData.get("favicon") as File | null,
+      `${publicSiteName} browser icon`,
+    ),
+    saveUploadedImage(
+      formData.get("hero") as File | null,
+      `${publicSiteName} hero`,
+    ),
+  ]);
+
+  const settingsData = {
+    defaultLocale,
+    languageMode,
+    logoMode,
+    siteName: publicSiteName,
+    siteNameEn: siteName.en,
+    siteNameNl: siteName.nl,
+    headerName: canonical(contentLocale, headerName),
+    headerNameEn: headerName.en,
+    headerNameNl: headerName.nl,
+    heroEyebrow: canonical(contentLocale, heroEyebrow),
+    heroEyebrowEn: heroEyebrow.en,
+    heroEyebrowNl: heroEyebrow.nl,
+    heroTitle: canonical(contentLocale, heroTitle),
+    heroTitleEn: heroTitle.en,
+    heroTitleNl: heroTitle.nl,
+    heroSlogan: canonical(contentLocale, heroSlogan) || null,
+    heroSloganEn: heroSlogan.en || null,
+    heroSloganNl: heroSlogan.nl || null,
+    heroButtonText: canonical(contentLocale, heroButtonText) || null,
+    heroButtonTextEn: heroButtonText.en || null,
+    heroButtonTextNl: heroButtonText.nl || null,
+    heroButtonUrl: nullableValue(formData, "heroButtonUrl"),
+    aboutTitle: canonical(contentLocale, aboutTitle),
+    aboutTitleEn: aboutTitle.en,
+    aboutTitleNl: aboutTitle.nl,
+    aboutText: canonical(contentLocale, aboutText),
+    aboutTextEn: aboutText.en,
+    aboutTextNl: aboutText.nl,
+    contactTitle: canonical(contentLocale, contactTitle),
+    contactTitleEn: contactTitle.en,
+    contactTitleNl: contactTitle.nl,
+    contactText: canonical(contentLocale, contactText) || null,
+    contactTextEn: contactText.en || null,
+    contactTextNl: contactText.nl || null,
+    contactEmail: value(formData, "contactEmail"),
+    facebookUrl: nullableValue(formData, "facebookUrl"),
+    instagramUrl: nullableValue(formData, "instagramUrl"),
+    linkedinUrl: nullableValue(formData, "linkedinUrl"),
+    logoMediaId:
+      formData.get("removeLogo") === "on"
+        ? null
+        : logo?.id ?? previousSettings?.logoMediaId ?? null,
+    faviconMediaId:
+      formData.get("removeFavicon") === "on"
+        ? null
+        : favicon?.id ?? previousSettings?.faviconMediaId ?? null,
+    heroMediaId:
+      formData.get("removeHero") === "on"
+        ? null
+        : hero?.id ?? previousSettings?.heroMediaId ?? null,
+  };
 
   await prisma.siteSettings.upsert({
     where: { id: "site" },
-    update: {
-      defaultLocale,
-      siteName: value(formData, "siteNameEn"),
-      siteNameEn: value(formData, "siteNameEn"),
-      siteNameNl: value(formData, "siteNameNl"),
-      headerName: value(formData, "headerNameEn"),
-      headerNameEn: value(formData, "headerNameEn"),
-      headerNameNl: value(formData, "headerNameNl"),
-      heroEyebrow: value(formData, "heroEyebrowEn"),
-      heroEyebrowEn: value(formData, "heroEyebrowEn"),
-      heroEyebrowNl: value(formData, "heroEyebrowNl"),
-      heroTitle: value(formData, "heroTitleEn"),
-      heroTitleEn: value(formData, "heroTitleEn"),
-      heroTitleNl: value(formData, "heroTitleNl"),
-      heroSlogan: nullableValue(formData, "heroSloganEn"),
-      heroSloganEn: nullableValue(formData, "heroSloganEn"),
-      heroSloganNl: nullableValue(formData, "heroSloganNl"),
-      heroButtonText: nullableValue(formData, "heroButtonTextEn"),
-      heroButtonTextEn: nullableValue(formData, "heroButtonTextEn"),
-      heroButtonTextNl: nullableValue(formData, "heroButtonTextNl"),
-      heroButtonUrl: nullableValue(formData, "heroButtonUrl"),
-      aboutTitle: value(formData, "aboutTitleEn"),
-      aboutTitleEn: value(formData, "aboutTitleEn"),
-      aboutTitleNl: value(formData, "aboutTitleNl"),
-      aboutText: value(formData, "aboutTextEn"),
-      aboutTextEn: value(formData, "aboutTextEn"),
-      aboutTextNl: value(formData, "aboutTextNl"),
-      contactTitle: value(formData, "contactTitleEn"),
-      contactTitleEn: value(formData, "contactTitleEn"),
-      contactTitleNl: value(formData, "contactTitleNl"),
-      contactText: nullableValue(formData, "contactTextEn"),
-      contactTextEn: nullableValue(formData, "contactTextEn"),
-      contactTextNl: nullableValue(formData, "contactTextNl"),
-      contactEmail: value(formData, "contactEmail"),
-      facebookUrl: nullableValue(formData, "facebookUrl"),
-      instagramUrl: nullableValue(formData, "instagramUrl"),
-      linkedinUrl: nullableValue(formData, "linkedinUrl"),
-      ...(logo ? { logoMediaId: logo.id } : {}),
-      ...(hero ? { heroMediaId: hero.id } : {}),
-    },
-    create: {
-      id: "site",
-      defaultLocale,
-      siteName: value(formData, "siteNameEn"),
-      siteNameEn: value(formData, "siteNameEn"),
-      siteNameNl: value(formData, "siteNameNl"),
-      headerName: value(formData, "headerNameEn"),
-      headerNameEn: value(formData, "headerNameEn"),
-      headerNameNl: value(formData, "headerNameNl"),
-      heroEyebrow: value(formData, "heroEyebrowEn"),
-      heroEyebrowEn: value(formData, "heroEyebrowEn"),
-      heroEyebrowNl: value(formData, "heroEyebrowNl"),
-      heroTitle: value(formData, "heroTitleEn"),
-      heroTitleEn: value(formData, "heroTitleEn"),
-      heroTitleNl: value(formData, "heroTitleNl"),
-      heroSlogan: nullableValue(formData, "heroSloganEn"),
-      heroSloganEn: nullableValue(formData, "heroSloganEn"),
-      heroSloganNl: nullableValue(formData, "heroSloganNl"),
-      heroButtonText: nullableValue(formData, "heroButtonTextEn"),
-      heroButtonTextEn: nullableValue(formData, "heroButtonTextEn"),
-      heroButtonTextNl: nullableValue(formData, "heroButtonTextNl"),
-      heroButtonUrl: nullableValue(formData, "heroButtonUrl"),
-      aboutTitle: value(formData, "aboutTitleEn"),
-      aboutTitleEn: value(formData, "aboutTitleEn"),
-      aboutTitleNl: value(formData, "aboutTitleNl"),
-      aboutText: value(formData, "aboutTextEn"),
-      aboutTextEn: value(formData, "aboutTextEn"),
-      aboutTextNl: value(formData, "aboutTextNl"),
-      contactTitle: value(formData, "contactTitleEn"),
-      contactTitleEn: value(formData, "contactTitleEn"),
-      contactTitleNl: value(formData, "contactTitleNl"),
-      contactText: nullableValue(formData, "contactTextEn"),
-      contactTextEn: nullableValue(formData, "contactTextEn"),
-      contactTextNl: nullableValue(formData, "contactTextNl"),
-      contactEmail: value(formData, "contactEmail"),
-      facebookUrl: nullableValue(formData, "facebookUrl"),
-      instagramUrl: nullableValue(formData, "instagramUrl"),
-      linkedinUrl: nullableValue(formData, "linkedinUrl"),
-      logoMediaId: logo?.id,
-      heroMediaId: hero?.id,
-    },
+    update: settingsData,
+    create: { id: "site", ...settingsData },
   });
+
+  const fallbackTheme = {
+    backgroundColor: previousTheme?.backgroundColor ?? "#f7f3ec",
+    surfaceColor: previousTheme?.surfaceColor ?? "#fffaf2",
+    textColor: previousTheme?.textColor ?? "#231f20",
+    mutedColor: previousTheme?.mutedColor ?? "#6f6860",
+    primaryColor: previousTheme?.primaryColor ?? "#006d77",
+    accentColor: previousTheme?.accentColor ?? "#f4a261",
+    headerColor: previousTheme?.headerColor ?? "#fffaf2",
+  };
+  const themeData = {
+    backgroundColor: colorValue(
+      formData,
+      "backgroundColor",
+      fallbackTheme.backgroundColor,
+    ),
+    surfaceColor: colorValue(formData, "surfaceColor", fallbackTheme.surfaceColor),
+    textColor: colorValue(formData, "textColor", fallbackTheme.textColor),
+    mutedColor: colorValue(formData, "mutedColor", fallbackTheme.mutedColor),
+    primaryColor: colorValue(formData, "primaryColor", fallbackTheme.primaryColor),
+    accentColor: colorValue(formData, "accentColor", fallbackTheme.accentColor),
+    headerColor: colorValue(formData, "headerColor", fallbackTheme.headerColor),
+    bodyFontScale: clampedFloat(
+      formData,
+      "bodyFontScale",
+      previousTheme?.bodyFontScale ?? 1,
+    ),
+    headingFontScale: clampedFloat(
+      formData,
+      "headingFontScale",
+      previousTheme?.headingFontScale ?? 1,
+    ),
+    heroTitleFontScale: clampedFloat(
+      formData,
+      "heroTitleFontScale",
+      previousTheme?.heroTitleFontScale ?? 1,
+    ),
+    heroBodyFontScale: clampedFloat(
+      formData,
+      "heroBodyFontScale",
+      previousTheme?.heroBodyFontScale ?? 1,
+    ),
+  };
 
   await prisma.themeSettings.upsert({
     where: { id: "theme" },
-    update: {
-      backgroundColor: value(formData, "backgroundColor"),
-      surfaceColor: value(formData, "surfaceColor"),
-      textColor: value(formData, "textColor"),
-      mutedColor: value(formData, "mutedColor"),
-      primaryColor: value(formData, "primaryColor"),
-      accentColor: value(formData, "accentColor"),
-      headerColor: value(formData, "headerColor"),
-    },
-    create: {
-      id: "theme",
-      backgroundColor: value(formData, "backgroundColor"),
-      surfaceColor: value(formData, "surfaceColor"),
-      textColor: value(formData, "textColor"),
-      mutedColor: value(formData, "mutedColor"),
-      primaryColor: value(formData, "primaryColor"),
-      accentColor: value(formData, "accentColor"),
-      headerColor: value(formData, "headerColor"),
-    },
+    update: themeData,
+    create: { id: "theme", ...themeData },
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/admin/settings");
   redirect("/admin/settings?saved=1");
 }
@@ -204,6 +337,25 @@ export async function saveTeamMember(formData: FormData) {
   await requireAdmin();
 
   const id = nullableValue(formData, "id");
+  const [language, previousMember] = await Promise.all([
+    currentLanguageConfiguration(),
+    id
+      ? prisma.teamMember.findUnique({
+          where: { id },
+          select: { functionNameEn: true, functionNameNl: true },
+        })
+      : Promise.resolve(null),
+  ]);
+  const functionName = localizedFormValues(formData, "functionName", {
+    en: previousMember?.functionNameEn,
+    nl: previousMember?.functionNameNl,
+  });
+  const publicFunctionName = canonical(language.primaryLocale, functionName);
+  if (!publicFunctionName) throw new Error("The team function cannot be empty.");
+  if (!id && language.languageMode !== "bilingual") {
+    const secondaryLocale = language.primaryLocale === "en" ? "nl" : "en";
+    functionName[secondaryLocale] ||= publicFunctionName;
+  }
   const image = await saveUploadedImage(
     formData.get("image") as File | null,
     value(formData, "name"),
@@ -221,9 +373,9 @@ export async function saveTeamMember(formData: FormData) {
         : [];
   const data = {
     name: value(formData, "name"),
-    functionName: value(formData, "functionNameEn"),
-    functionNameEn: value(formData, "functionNameEn"),
-    functionNameNl: value(formData, "functionNameNl"),
+    functionName: publicFunctionName,
+    functionNameEn: functionName.en,
+    functionNameNl: functionName.nl,
     url: nullableValue(formData, "url"),
     isVisible: formData.get("isVisible") === "on",
     ...(image ? { imageMediaId: image.id } : {}),
@@ -284,13 +436,20 @@ export async function saveAcademicYear(formData: FormData) {
 
   const label = value(formData, "label");
   if (!label) return;
+  const lastYear = await prisma.academicYear.findFirst({
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+  const chronologicalOrder = Number.parseInt(label.match(/^\d{4}/)?.[0] ?? "", 10);
 
   await prisma.academicYear.upsert({
     where: { label },
     update: {},
     create: {
       label,
-      sortOrder: intValue(formData, "sortOrder"),
+      sortOrder: Number.isFinite(chronologicalOrder)
+        ? chronologicalOrder
+        : (lastYear?.sortOrder ?? 0) + 1,
       isCurrent: false,
     },
   });
@@ -340,28 +499,73 @@ export async function saveEvent(formData: FormData) {
   await requireAdmin();
 
   const id = nullableValue(formData, "id");
-  const title = value(formData, "titleEn");
+  const [language, previousEvent] = await Promise.all([
+    currentLanguageConfiguration(),
+    id
+      ? prisma.event.findUnique({
+          where: { id },
+          select: {
+            titleEn: true,
+            titleNl: true,
+            summaryEn: true,
+            summaryNl: true,
+            descriptionEn: true,
+            descriptionNl: true,
+            locationEn: true,
+            locationNl: true,
+            slug: true,
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+  const title = localizedFormValues(formData, "title", {
+    en: previousEvent?.titleEn,
+    nl: previousEvent?.titleNl,
+  });
+  const summary = localizedFormValues(formData, "summary", {
+    en: previousEvent?.summaryEn,
+    nl: previousEvent?.summaryNl,
+  });
+  const description = localizedFormValues(formData, "description", {
+    en: previousEvent?.descriptionEn,
+    nl: previousEvent?.descriptionNl,
+  });
+  const location = localizedFormValues(formData, "location", {
+    en: previousEvent?.locationEn,
+    nl: previousEvent?.locationNl,
+  });
+  const publicTitle = canonical(language.primaryLocale, title);
+  if (!publicTitle) throw new Error("The event title cannot be empty.");
+
+  if (!id && language.languageMode !== "bilingual") {
+    const secondaryLocale = language.primaryLocale === "en" ? "nl" : "en";
+    title[secondaryLocale] ||= publicTitle;
+    summary[secondaryLocale] ||= canonical(language.primaryLocale, summary);
+    description[secondaryLocale] ||= canonical(language.primaryLocale, description);
+    location[secondaryLocale] ||= canonical(language.primaryLocale, location);
+  }
+
   const picture = await saveUploadedImage(
     formData.get("picture") as File | null,
-    title,
+    publicTitle,
   );
-  const slug = nullableValue(formData, "slug") ?? slugify(title);
+  const slug = nullableValue(formData, "slug") ?? slugify(publicTitle);
   const startAt = dateValue(formData, "startAt") ?? new Date();
   const endAt = dateValue(formData, "endAt");
   const data = {
-    title,
-    titleEn: value(formData, "titleEn"),
-    titleNl: value(formData, "titleNl"),
+    title: publicTitle,
+    titleEn: title.en,
+    titleNl: title.nl,
     slug,
-    summary: nullableValue(formData, "summaryEn"),
-    summaryEn: nullableValue(formData, "summaryEn"),
-    summaryNl: nullableValue(formData, "summaryNl"),
-    description: value(formData, "descriptionEn"),
-    descriptionEn: value(formData, "descriptionEn"),
-    descriptionNl: value(formData, "descriptionNl"),
-    location: value(formData, "locationEn"),
-    locationEn: value(formData, "locationEn"),
-    locationNl: value(formData, "locationNl"),
+    summary: canonical(language.primaryLocale, summary) || null,
+    summaryEn: summary.en || null,
+    summaryNl: summary.nl || null,
+    description: canonical(language.primaryLocale, description),
+    descriptionEn: description.en,
+    descriptionNl: description.nl,
+    location: canonical(language.primaryLocale, location),
+    locationEn: location.en,
+    locationNl: location.nl,
     startAt,
     endAt,
     isPublished: formData.get("isPublished") === "on",
@@ -377,6 +581,9 @@ export async function saveEvent(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/admin/events");
   revalidatePath(`/events/${slug}`);
+  if (previousEvent?.slug && previousEvent.slug !== slug) {
+    revalidatePath(`/events/${previousEvent.slug}`);
+  }
 }
 
 export async function deleteEvent(formData: FormData) {
@@ -390,16 +597,41 @@ export async function savePartner(formData: FormData) {
   await requireAdmin();
 
   const id = nullableValue(formData, "id");
+  const [language, previousPartner, lastPartner] = await Promise.all([
+    currentLanguageConfiguration(),
+    id
+      ? prisma.partner.findUnique({
+          where: { id },
+          select: { nameEn: true, nameNl: true, sortOrder: true },
+        })
+      : Promise.resolve(null),
+    id
+      ? Promise.resolve(null)
+      : prisma.partner.findFirst({
+          orderBy: { sortOrder: "desc" },
+          select: { sortOrder: true },
+        }),
+  ]);
+  const partnerName = localizedFormValues(formData, "name", {
+    en: previousPartner?.nameEn,
+    nl: previousPartner?.nameNl,
+  });
+  const publicName = canonical(language.primaryLocale, partnerName);
+  if (!publicName) throw new Error("The partner name cannot be empty.");
+  if (!id && language.languageMode !== "bilingual") {
+    const secondaryLocale = language.primaryLocale === "en" ? "nl" : "en";
+    partnerName[secondaryLocale] ||= publicName;
+  }
   const logo = await saveUploadedImage(
     formData.get("logo") as File | null,
-    value(formData, "nameEn"),
+    publicName,
   );
   const data = {
-    name: value(formData, "nameEn"),
-    nameEn: value(formData, "nameEn"),
-    nameNl: value(formData, "nameNl"),
+    name: publicName,
+    nameEn: partnerName.en,
+    nameNl: partnerName.nl,
     websiteUrl: value(formData, "websiteUrl"),
-    sortOrder: intValue(formData, "sortOrder"),
+    sortOrder: previousPartner?.sortOrder ?? (lastPartner?.sortOrder ?? -1) + 1,
     isVisible: formData.get("isVisible") === "on",
     ...(logo ? { logoMediaId: logo.id } : {}),
   };
@@ -419,4 +651,66 @@ export async function deletePartner(formData: FormData) {
   await prisma.partner.delete({ where: { id: value(formData, "id") } });
   revalidatePath("/");
   revalidatePath("/admin/partners");
+}
+
+export async function updatePartnerOrder(orderedIds: string[]) {
+  await requireAdmin();
+  const uniqueIds = [...new Set(orderedIds)].filter(Boolean);
+
+  await prisma.$transaction(
+    uniqueIds.map((id, index) =>
+      prisma.partner.update({ where: { id }, data: { sortOrder: index } }),
+    ),
+  );
+
+  revalidatePath("/");
+  revalidatePath("/admin/partners");
+}
+
+type SiteSectionKey = "about" | "team" | "events" | "contact" | "partners";
+
+export async function updateSiteSections(
+  sections: {
+    key: SiteSectionKey;
+    isVisible: boolean;
+    showInNavigation: boolean;
+  }[],
+) {
+  await requireAdmin();
+  const allowedKeys = new Set<SiteSectionKey>([
+    "about",
+    "team",
+    "events",
+    "contact",
+    "partners",
+  ]);
+  const validSections = sections.filter(
+    (section, index, items) =>
+      allowedKeys.has(section.key) &&
+      items.findIndex((candidate) => candidate.key === section.key) === index,
+  );
+
+  await prisma.$transaction(
+    validSections.map((section, index) =>
+      prisma.siteSection.upsert({
+        where: { key: section.key },
+        update: {
+          sortOrder: index,
+          isVisible: Boolean(section.isVisible),
+          showInNavigation:
+            Boolean(section.isVisible) && Boolean(section.showInNavigation),
+        },
+        create: {
+          key: section.key,
+          sortOrder: index,
+          isVisible: Boolean(section.isVisible),
+          showInNavigation:
+            Boolean(section.isVisible) && Boolean(section.showInNavigation),
+        },
+      }),
+    ),
+  );
+
+  revalidatePath("/");
+  revalidatePath("/admin/settings");
 }

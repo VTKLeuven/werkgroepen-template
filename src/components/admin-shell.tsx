@@ -1,53 +1,54 @@
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { ExternalLink, LogOut } from "lucide-react";
+import { AdminNav } from "@/components/admin-nav";
 import { logoutAction } from "@/lib/admin-actions";
-
-const navItems = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/settings", label: "Settings" },
-  { href: "/admin/team", label: "Team" },
-  { href: "/admin/events", label: "Events" },
-  { href: "/admin/partners", label: "Partners" },
-];
 
 export function AdminShell({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <main className="min-h-screen bg-[#f5f1e8] text-[#211f1c]">
       <header className="border-b border-black/10 bg-white/80 px-4 py-4 backdrop-blur sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#006d77]">
               Admin
             </p>
             <h1 className="text-2xl font-semibold">{title}</h1>
+            {description ? (
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-[#6f6860]">
+                {description}
+              </p>
+            ) : null}
           </div>
-          <form action={logoutAction}>
-            <button className="inline-flex items-center gap-2 rounded-full bg-[#211f1c] px-4 py-2 text-sm font-semibold text-white transition hover:bg-black">
-              <LogOut size={16} />
-              Sign out
-            </button>
-          </form>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 rounded-full bg-[#006d77] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#005d66] hover:shadow-md"
+            >
+              <ExternalLink size={16} />
+              View website
+            </Link>
+            <form action={logoutAction}>
+              <button className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#3a352f] transition hover:border-black/20 hover:bg-[#faf8f3]">
+                <LogOut size={16} />
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
       </header>
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[220px_1fr]">
-        <nav className="flex gap-2 overflow-x-auto lg:block lg:space-y-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="block rounded-2xl px-4 py-3 text-sm font-semibold text-[#605a52] transition hover:bg-white hover:text-[#211f1c]"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <section>{children}</section>
+      <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[220px_1fr]">
+        <aside className="min-w-0">
+          <AdminNav />
+        </aside>
+        <section className="min-w-0">{children}</section>
       </div>
     </main>
   );

@@ -10,39 +10,50 @@ export async function getSiteData() {
       orderBy: { sortOrder: "desc" },
     }));
 
-  const [settings, theme, teamMemberships, events, partners] = await Promise.all([
-    prisma.siteSettings.findUnique({
-      where: { id: "site" },
-      include: { logoMedia: true, heroMedia: true },
-    }),
-    prisma.themeSettings.findUnique({ where: { id: "theme" } }),
-    currentAcademicYear
-      ? prisma.teamMemberYear.findMany({
-          where: {
-            academicYearId: currentAcademicYear.id,
-            teamMember: { isVisible: true },
-          },
-          include: {
-            teamMember: { include: { imageMedia: true } },
-          },
-          orderBy: [{ sortOrder: "asc" }, { teamMember: { name: "asc" } }],
-        })
-      : Promise.resolve([]),
-    prisma.event.findMany({
-      where: { isPublished: true },
-      include: { pictureMedia: true },
-      orderBy: { startAt: "asc" },
-    }),
-    prisma.partner.findMany({
-      where: { isVisible: true },
-      include: { logoMedia: true },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    }),
-  ]);
+  const [settings, theme, sections, teamMemberships, events, partners] =
+    await Promise.all([
+      prisma.siteSettings.findUnique({
+        where: { id: "site" },
+        include: { logoMedia: true, faviconMedia: true, heroMedia: true },
+      }),
+      prisma.themeSettings.findUnique({ where: { id: "theme" } }),
+      prisma.siteSection.findMany({
+        orderBy: [{ sortOrder: "asc" }, { key: "asc" }],
+      }),
+      currentAcademicYear
+        ? prisma.teamMemberYear.findMany({
+            where: {
+              academicYearId: currentAcademicYear.id,
+              teamMember: { isVisible: true },
+            },
+            include: {
+              teamMember: { include: { imageMedia: true } },
+            },
+            orderBy: [{ sortOrder: "asc" }, { teamMember: { name: "asc" } }],
+          })
+        : Promise.resolve([]),
+      prisma.event.findMany({
+        where: { isPublished: true },
+        include: { pictureMedia: true },
+        orderBy: { startAt: "asc" },
+      }),
+      prisma.partner.findMany({
+        where: { isVisible: true },
+        include: { logoMedia: true },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      }),
+    ]);
+
+  const storedSectionKeys = new Set(sections.map((section) => section.key));
+  const orderedSections = [
+    ...sections,
+    ...defaultSections.filter((section) => !storedSectionKeys.has(section.key)),
+  ].sort((left, right) => left.sortOrder - right.sortOrder);
 
   return {
     settings: settings ?? defaultSettings,
     theme: theme ?? defaultTheme,
+    sections: orderedSections,
     currentAcademicYear,
     teamMembers: teamMemberships.map((membership) => membership.teamMember),
     events,
@@ -53,14 +64,18 @@ export async function getSiteData() {
 export const defaultSettings = {
   id: "site",
   defaultLocale: "en" as const,
+  languageMode: "bilingual" as const,
   siteName: "Chemix",
   siteNameEn: "Chemix",
   siteNameNl: "Chemix",
   headerName: "Chemix",
   headerNameEn: "Chemix",
   headerNameNl: "Chemix",
+  logoMode: "iconWithText" as const,
   logoMediaId: null,
   logoMedia: null,
+  faviconMediaId: null,
+  faviconMedia: null,
   heroMediaId: null,
   heroMedia: null,
   heroEyebrow: "VTK subdivision",
@@ -114,6 +129,53 @@ export const defaultTheme = {
   primaryColor: "#006d77",
   accentColor: "#f4a261",
   headerColor: "#fffaf2",
+  bodyFontScale: 1,
+  headingFontScale: 1,
+  heroTitleFontScale: 1,
+  heroBodyFontScale: 1,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
+
+export const defaultSections = [
+  {
+    key: "about" as const,
+    sortOrder: 0,
+    isVisible: true,
+    showInNavigation: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    key: "team" as const,
+    sortOrder: 1,
+    isVisible: true,
+    showInNavigation: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    key: "events" as const,
+    sortOrder: 2,
+    isVisible: true,
+    showInNavigation: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    key: "contact" as const,
+    sortOrder: 3,
+    isVisible: true,
+    showInNavigation: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    key: "partners" as const,
+    sortOrder: 4,
+    isVisible: true,
+    showInNavigation: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];

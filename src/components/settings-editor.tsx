@@ -1,0 +1,1101 @@
+"use client";
+
+import {
+  useEffect,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { useFormStatus } from "react-dom";
+import {
+  Check,
+  ImageIcon,
+  Monitor,
+  Save,
+  Smartphone,
+  Type,
+} from "lucide-react";
+import {
+  Field,
+  Panel,
+  inputClass,
+  textareaClass,
+} from "@/components/admin-shell";
+import {
+  SectionOrderBoard,
+  type EditableSection,
+} from "@/components/section-order-board";
+import { updateSettings } from "@/lib/admin-actions";
+
+type Locale = "en" | "nl";
+type LanguageMode = "bilingual" | "englishOnly" | "dutchOnly";
+type LogoMode = "iconWithText" | "wordmark";
+type CopyKey =
+  | "siteName"
+  | "headerName"
+  | "heroEyebrow"
+  | "heroTitle"
+  | "heroSlogan"
+  | "heroButtonText"
+  | "aboutTitle"
+  | "aboutText"
+  | "contactTitle"
+  | "contactText";
+
+type LocalizedCopy = Record<CopyKey, Record<Locale, string>>;
+
+type EditorInitial = {
+  languageMode: LanguageMode;
+  defaultLocale: Locale;
+  logoMode: LogoMode;
+  copy: LocalizedCopy;
+  heroButtonUrl: string;
+  contactEmail: string;
+  facebookUrl: string;
+  instagramUrl: string;
+  linkedinUrl: string;
+  logoUrl: string | null;
+  logoName: string | null;
+  heroUrl: string | null;
+  heroName: string | null;
+  faviconUrl: string | null;
+  faviconName: string | null;
+  colors: {
+    backgroundColor: string;
+    surfaceColor: string;
+    textColor: string;
+    mutedColor: string;
+    primaryColor: string;
+    accentColor: string;
+    headerColor: string;
+  };
+  typography: {
+    bodyFontScale: number;
+    headingFontScale: number;
+    heroTitleFontScale: number;
+    heroBodyFontScale: number;
+  };
+  sections: EditableSection[];
+};
+
+export function SettingsEditor({
+  initial,
+  saved,
+}: {
+  initial: EditorInitial;
+  saved: boolean;
+}) {
+  const [languageChoice, setLanguageChoice] = useState<"single" | "bilingual">(
+    initial.languageMode === "bilingual" ? "bilingual" : "single",
+  );
+  const [defaultLocale, setDefaultLocale] = useState<Locale>(
+    initial.languageMode === "dutchOnly" ? "nl" : initial.defaultLocale,
+  );
+  const [previewLocale, setPreviewLocale] = useState<Locale>(defaultLocale);
+  const [logoMode, setLogoMode] = useState<LogoMode>(initial.logoMode);
+  const [copy, setCopy] = useState(initial.copy);
+  const [colors, setColors] = useState(initial.colors);
+  const [typography, setTypography] = useState(initial.typography);
+  const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
+  const [heroUrl, setHeroUrl] = useState(initial.heroUrl);
+  const [faviconUrl, setFaviconUrl] = useState(initial.faviconUrl);
+  const [removeLogo, setRemoveLogo] = useState(false);
+  const [removeHero, setRemoveHero] = useState(false);
+  const [removeFavicon, setRemoveFavicon] = useState(false);
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [dirty, setDirty] = useState(false);
+
+  useObjectUrlCleanup(logoUrl);
+  useObjectUrlCleanup(heroUrl);
+  useObjectUrlCleanup(faviconUrl);
+
+  const languageMode: LanguageMode =
+    languageChoice === "bilingual"
+      ? "bilingual"
+      : defaultLocale === "nl"
+        ? "dutchOnly"
+        : "englishOnly";
+  const activePreviewLocale =
+    languageChoice === "single" ? defaultLocale : previewLocale;
+
+  function updateCopy(key: CopyKey, locale: Locale, nextValue: string) {
+    setCopy((current) => ({
+      ...current,
+      [key]: { ...current[key], [locale]: nextValue },
+    }));
+  }
+
+  function previewFile(
+    file: File | undefined,
+    setUrl: Dispatch<SetStateAction<string | null>>,
+  ) {
+    if (!file) return;
+    setUrl(URL.createObjectURL(file));
+  }
+
+  return (
+    <form
+      action={updateSettings}
+      encType="multipart/form-data"
+      className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(390px,0.72fr)]"
+      onInput={(event) => {
+        if (!(event.target as HTMLElement).closest("[data-auto-save]")) {
+          setDirty(true);
+        }
+      }}
+      onChange={(event) => {
+        if (!(event.target as HTMLElement).closest("[data-auto-save]")) {
+          setDirty(true);
+        }
+      }}
+    >
+      <input type="hidden" name="languageMode" value={languageMode} />
+      <div className="grid min-w-0 gap-6">
+        {saved ? (
+          <p className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+            <Check size={17} />
+            Your website settings were saved.
+          </p>
+        ) : null}
+
+        <Panel
+          title="Languages"
+          description="Choose whether editors manage one public language or English and Dutch side by side."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ChoiceCard
+              checked={languageChoice === "single"}
+              name="languageChoice"
+              value="single"
+              title="One language"
+              description="A cleaner editor and no language switch on the website."
+              onChange={() => setLanguageChoice("single")}
+            />
+            <ChoiceCard
+              checked={languageChoice === "bilingual"}
+              name="languageChoice"
+              value="bilingual"
+              title="English + Dutch"
+              description="Edit both versions and let visitors switch language."
+              onChange={() => setLanguageChoice("bilingual")}
+            />
+          </div>
+          <div className="mt-5 max-w-sm">
+            <Field
+              label={
+                languageChoice === "bilingual"
+                  ? "Default website language"
+                  : "Website language"
+              }
+            >
+              <select
+                name="defaultLocale"
+                value={defaultLocale}
+                className={inputClass}
+                onChange={(event) => {
+                  const locale = event.target.value as Locale;
+                  setDefaultLocale(locale);
+                  if (languageChoice === "single") setPreviewLocale(locale);
+                }}
+              >
+                <option value="en">English</option>
+                <option value="nl">Dutch</option>
+              </select>
+            </Field>
+          </div>
+        </Panel>
+
+        <Panel
+          title="Page sections"
+          description="Choose what appears on the homepage, what is listed in the menu, and in which order."
+        >
+          <SectionOrderBoard sections={initial.sections} />
+        </Panel>
+
+        <Panel
+          title="Brand"
+          description="Set the name visitors see and choose how your logo behaves in the header."
+        >
+          <div className="grid gap-4">
+            <LocalizedControl
+              label="Website name"
+              field="siteName"
+              values={copy.siteName}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("siteName", locale, value)}
+              required
+            />
+            <LocalizedControl
+              label="Header text"
+              hint="Used next to a square logo and as accessible fallback text."
+              field="headerName"
+              values={copy.headerName}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("headerName", locale, value)}
+              required
+            />
+
+            <fieldset className="mt-2">
+              <legend className="text-sm font-semibold text-[#3a352f]">
+                Header logo style
+              </legend>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <ChoiceCard
+                  checked={logoMode === "iconWithText"}
+                  name="logoMode"
+                  value="iconWithText"
+                  title="Square icon + text"
+                  description="A compact badge with the header text beside it."
+                  onChange={() => setLogoMode("iconWithText")}
+                />
+                <ChoiceCard
+                  checked={logoMode === "wordmark"}
+                  name="logoMode"
+                  value="wordmark"
+                  title="Full-width logo"
+                  description="The uploaded logo already contains its name; no frame or extra text."
+                  onChange={() => setLogoMode("wordmark")}
+                />
+              </div>
+            </fieldset>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <MediaField
+                label="Header logo"
+                name="logo"
+                currentName={initial.logoName}
+                previewUrl={removeLogo ? null : logoUrl}
+                previewContain
+                removeName="removeLogo"
+                remove={removeLogo}
+                onRemove={(checked) => {
+                  setRemoveLogo(checked);
+                  if (!checked) setLogoUrl(initial.logoUrl);
+                }}
+                onFile={(file) => {
+                  setRemoveLogo(false);
+                  previewFile(file, setLogoUrl);
+                }}
+              />
+              <MediaField
+                label="Browser icon (favicon)"
+                name="favicon"
+                currentName={initial.faviconName}
+                previewUrl={removeFavicon ? null : faviconUrl}
+                previewContain
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,.ico"
+                help="A square PNG, SVG, or ICO works best."
+                removeName="removeFavicon"
+                remove={removeFavicon}
+                onRemove={(checked) => {
+                  setRemoveFavicon(checked);
+                  if (!checked) setFaviconUrl(initial.faviconUrl);
+                }}
+                onFile={(file) => {
+                  setRemoveFavicon(false);
+                  previewFile(file, setFaviconUrl);
+                }}
+              />
+            </div>
+          </div>
+        </Panel>
+
+        <Panel
+          title="Hero"
+          description="The live preview updates while you type and also shows a newly selected photo before saving."
+        >
+          <div className="grid gap-4">
+            <MediaField
+              label="Hero photo"
+              name="hero"
+              currentName={initial.heroName}
+              previewUrl={removeHero ? null : heroUrl}
+              wide
+              removeName="removeHero"
+              remove={removeHero}
+              onRemove={(checked) => {
+                setRemoveHero(checked);
+                if (!checked) setHeroUrl(initial.heroUrl);
+              }}
+              onFile={(file) => {
+                setRemoveHero(false);
+                previewFile(file, setHeroUrl);
+              }}
+            />
+            <LocalizedControl
+              label="Eyebrow"
+              field="heroEyebrow"
+              values={copy.heroEyebrow}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("heroEyebrow", locale, value)}
+              required
+            />
+            <LocalizedControl
+              label="Headline"
+              field="heroTitle"
+              values={copy.heroTitle}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("heroTitle", locale, value)}
+              required
+            />
+            <LocalizedControl
+              label="Supporting text"
+              field="heroSlogan"
+              values={copy.heroSlogan}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("heroSlogan", locale, value)}
+              multiline
+            />
+            <LocalizedControl
+              label="Button text"
+              field="heroButtonText"
+              values={copy.heroButtonText}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) =>
+                updateCopy("heroButtonText", locale, value)
+              }
+            />
+            <Field label="Button link">
+              <input
+                name="heroButtonUrl"
+                defaultValue={initial.heroButtonUrl}
+                className={inputClass}
+                placeholder="#events or https://…"
+              />
+            </Field>
+          </div>
+        </Panel>
+
+        <Panel title="About section">
+          <div className="grid gap-4">
+            <LocalizedControl
+              label="Title"
+              field="aboutTitle"
+              values={copy.aboutTitle}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("aboutTitle", locale, value)}
+              required
+            />
+            <LocalizedControl
+              label="Text"
+              field="aboutText"
+              values={copy.aboutText}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("aboutText", locale, value)}
+              multiline
+              required
+            />
+          </div>
+        </Panel>
+
+        <Panel title="Contact and social links">
+          <div className="grid gap-4">
+            <LocalizedControl
+              label="Title"
+              field="contactTitle"
+              values={copy.contactTitle}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) =>
+                updateCopy("contactTitle", locale, value)
+              }
+              required
+            />
+            <LocalizedControl
+              label="Short text"
+              field="contactText"
+              values={copy.contactText}
+              languageChoice={languageChoice}
+              activeLocale={defaultLocale}
+              onChange={(locale, value) => updateCopy("contactText", locale, value)}
+              multiline
+            />
+            <Field label="Email">
+              <input
+                name="contactEmail"
+                type="email"
+                required
+                defaultValue={initial.contactEmail}
+                className={inputClass}
+              />
+            </Field>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Field label="Facebook URL">
+                <input
+                  name="facebookUrl"
+                  type="url"
+                  defaultValue={initial.facebookUrl}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Instagram URL">
+                <input
+                  name="instagramUrl"
+                  type="url"
+                  defaultValue={initial.instagramUrl}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="LinkedIn URL">
+                <input
+                  name="linkedinUrl"
+                  type="url"
+                  defaultValue={initial.linkedinUrl}
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel
+          title="Colors and typography"
+          description="Use restrained adjustments to keep the layout readable on phones and large screens."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ColorField
+              label="Background"
+              name="backgroundColor"
+              value={colors.backgroundColor}
+              onChange={(value) =>
+                setColors((current) => ({ ...current, backgroundColor: value }))
+              }
+            />
+            <ColorField
+              label="Cards / surfaces"
+              name="surfaceColor"
+              value={colors.surfaceColor}
+              onChange={(value) =>
+                setColors((current) => ({ ...current, surfaceColor: value }))
+              }
+            />
+            <ColorField
+              label="Text"
+              name="textColor"
+              value={colors.textColor}
+              onChange={(value) =>
+                setColors((current) => ({ ...current, textColor: value }))
+              }
+            />
+            <ColorField
+              label="Muted text"
+              name="mutedColor"
+              value={colors.mutedColor}
+              onChange={(value) =>
+                setColors((current) => ({ ...current, mutedColor: value }))
+              }
+            />
+            <ColorField
+              label="Primary"
+              name="primaryColor"
+              value={colors.primaryColor}
+              onChange={(value) =>
+                setColors((current) => ({ ...current, primaryColor: value }))
+              }
+            />
+            <ColorField
+              label="Accent"
+              name="accentColor"
+              value={colors.accentColor}
+              onChange={(value) =>
+                setColors((current) => ({ ...current, accentColor: value }))
+              }
+            />
+            <ColorField
+              label="Header"
+              name="headerColor"
+              value={colors.headerColor}
+              onChange={(value) =>
+                setColors((current) => ({ ...current, headerColor: value }))
+              }
+            />
+          </div>
+          <div className="mt-7 grid gap-5 sm:grid-cols-2">
+            <ScaleField
+              label="Body text"
+              name="bodyFontScale"
+              value={typography.bodyFontScale}
+              onChange={(value) =>
+                setTypography((current) => ({ ...current, bodyFontScale: value }))
+              }
+            />
+            <ScaleField
+              label="Section headings"
+              name="headingFontScale"
+              value={typography.headingFontScale}
+              onChange={(value) =>
+                setTypography((current) => ({
+                  ...current,
+                  headingFontScale: value,
+                }))
+              }
+            />
+            <ScaleField
+              label="Hero headline"
+              name="heroTitleFontScale"
+              value={typography.heroTitleFontScale}
+              onChange={(value) =>
+                setTypography((current) => ({
+                  ...current,
+                  heroTitleFontScale: value,
+                }))
+              }
+            />
+            <ScaleField
+              label="Hero supporting text"
+              name="heroBodyFontScale"
+              value={typography.heroBodyFontScale}
+              onChange={(value) =>
+                setTypography((current) => ({
+                  ...current,
+                  heroBodyFontScale: value,
+                }))
+              }
+            />
+          </div>
+        </Panel>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <SaveButton />
+          <p className="text-sm text-[#6f6860]">
+            {dirty ? "You have unsaved changes." : "Everything shown is saved."}
+          </p>
+        </div>
+      </div>
+
+      <aside className="min-w-0 xl:sticky xl:top-6">
+        <div className="rounded-[2rem] bg-[#211f1c] p-3 shadow-xl shadow-black/15">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-2 pt-1 text-white">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
+                Live preview
+              </p>
+              <p className="text-sm font-semibold">Header, hero and intro</p>
+            </div>
+            <div className="flex gap-1 rounded-full bg-white/10 p-1">
+              <PreviewButton
+                active={device === "desktop"}
+                label="Desktop preview"
+                onClick={() => setDevice("desktop")}
+              >
+                <Monitor size={15} />
+              </PreviewButton>
+              <PreviewButton
+                active={device === "mobile"}
+                label="Mobile preview"
+                onClick={() => setDevice("mobile")}
+              >
+                <Smartphone size={15} />
+              </PreviewButton>
+            </div>
+          </div>
+
+          <div
+            className={`mx-auto overflow-hidden rounded-[1.35rem] bg-white transition-all ${
+              device === "mobile" ? "max-w-[290px]" : "max-w-full"
+            }`}
+          >
+            <div
+              className="flex h-14 items-center justify-between gap-3 border-b border-black/10 px-3"
+              style={{ backgroundColor: colors.headerColor, color: colors.textColor }}
+            >
+              <PreviewBrand
+                logoMode={logoMode}
+                logoUrl={removeLogo ? null : logoUrl}
+                name={copy.headerName[activePreviewLocale]}
+                primaryColor={colors.primaryColor}
+              />
+              {languageChoice === "bilingual" ? (
+                <div className="flex rounded-full bg-black/5 p-0.5 text-[9px] font-bold">
+                  {(["en", "nl"] as const).map((locale) => (
+                    <button
+                      key={locale}
+                      type="button"
+                      onClick={() => setPreviewLocale(locale)}
+                      className={`rounded-full px-2 py-1 uppercase ${
+                        activePreviewLocale === locale ? "text-white" : "opacity-55"
+                      }`}
+                      style={
+                        activePreviewLocale === locale
+                          ? { backgroundColor: colors.primaryColor }
+                          : undefined
+                      }
+                    >
+                      {locale}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div
+              className={`relative flex items-end overflow-hidden p-5 text-white ${
+                device === "mobile" ? "min-h-[390px]" : "min-h-[360px]"
+              }`}
+              style={{
+                background: !removeHero && heroUrl
+                  ? undefined
+                  : `linear-gradient(135deg, ${colors.primaryColor}, #263238 58%, ${colors.accentColor})`,
+              }}
+            >
+              {!removeHero && heroUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={heroUrl}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : null}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-black/10" />
+              <div className="relative z-10 max-w-[92%]">
+                <p
+                  className="mb-2 font-semibold uppercase tracking-[0.16em] text-white/75"
+                  style={{ fontSize: `${0.64 * typography.heroBodyFontScale}rem` }}
+                >
+                  {copy.heroEyebrow[activePreviewLocale]}
+                </p>
+                <h2
+                  className="font-semibold leading-[0.98]"
+                  style={{
+                    fontSize: `${
+                      (device === "mobile" ? 2.1 : 2.65) *
+                      typography.heroTitleFontScale
+                    }rem`,
+                  }}
+                >
+                  {copy.heroTitle[activePreviewLocale] || "Your hero headline"}
+                </h2>
+                {copy.heroSlogan[activePreviewLocale] ? (
+                  <p
+                    className="mt-3 max-w-md leading-relaxed text-white/80"
+                    style={{ fontSize: `${0.76 * typography.heroBodyFontScale}rem` }}
+                  >
+                    {copy.heroSlogan[activePreviewLocale]}
+                  </p>
+                ) : null}
+                {copy.heroButtonText[activePreviewLocale] ? (
+                  <span
+                    className="mt-4 inline-flex rounded-full bg-white px-3 py-1.5 font-semibold text-[#1f1f1f]"
+                    style={{ fontSize: `${0.66 * typography.bodyFontScale}rem` }}
+                  >
+                    {copy.heroButtonText[activePreviewLocale]}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div
+              className="p-5"
+              style={{ backgroundColor: colors.backgroundColor, color: colors.textColor }}
+            >
+              <p
+                className="font-semibold uppercase tracking-[0.16em]"
+                style={{ color: colors.primaryColor, fontSize: ".58rem" }}
+              >
+                {activePreviewLocale === "nl" ? "Over" : "About"}
+              </p>
+              <h3
+                className="mt-1 font-semibold"
+                style={{ fontSize: `${1.55 * typography.headingFontScale}rem` }}
+              >
+                {copy.aboutTitle[activePreviewLocale]}
+              </h3>
+              <p
+                className="mt-3 line-clamp-3 leading-relaxed"
+                style={{
+                  color: colors.mutedColor,
+                  fontSize: `${0.76 * typography.bodyFontScale}rem`,
+                }}
+              >
+                {copy.aboutText[activePreviewLocale]}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3 px-2 pb-1">
+            <p className="text-xs leading-5 text-white/55">
+              Preview changes are local until you save.
+            </p>
+            <SaveButton compact />
+          </div>
+        </div>
+      </aside>
+    </form>
+  );
+}
+
+function useObjectUrlCleanup(url: string | null) {
+  useEffect(
+    () => () => {
+      if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+    },
+    [url],
+  );
+}
+
+function ChoiceCard({
+  checked,
+  name,
+  value,
+  title,
+  description,
+  onChange,
+}: {
+  checked: boolean;
+  name: string;
+  value: string;
+  title: string;
+  description: string;
+  onChange: () => void;
+}) {
+  return (
+    <label
+      className={`cursor-pointer rounded-2xl border p-4 transition ${
+        checked
+          ? "border-[#006d77] bg-[#006d77]/5 ring-2 ring-[#006d77]/10"
+          : "border-black/10 hover:border-black/20"
+      }`}
+    >
+      <span className="flex items-start gap-3">
+        <input
+          type="radio"
+          name={name}
+          value={value}
+          checked={checked}
+          onChange={onChange}
+          className="mt-1 h-4 w-4 accent-[#006d77]"
+        />
+        <span>
+          <span className="block text-sm font-semibold">{title}</span>
+          <span className="mt-1 block text-xs leading-5 text-[#6f6860]">
+            {description}
+          </span>
+        </span>
+      </span>
+    </label>
+  );
+}
+
+function LocalizedControl({
+  label,
+  hint,
+  field,
+  values,
+  languageChoice,
+  activeLocale,
+  onChange,
+  multiline = false,
+  required = false,
+}: {
+  label: string;
+  hint?: string;
+  field: CopyKey;
+  values: Record<Locale, string>;
+  languageChoice: "single" | "bilingual";
+  activeLocale: Locale;
+  onChange: (locale: Locale, value: string) => void;
+  multiline?: boolean;
+  required?: boolean;
+}) {
+  const visibleLocales: Locale[] =
+    languageChoice === "bilingual" ? ["en", "nl"] : [activeLocale];
+  const hiddenLocales = (["en", "nl"] as const).filter(
+    (locale) => !visibleLocales.includes(locale),
+  );
+
+  return (
+    <div>
+      {hint ? <p className="mb-2 text-xs leading-5 text-[#6f6860]">{hint}</p> : null}
+      <div
+        className={
+          languageChoice === "bilingual" ? "grid gap-4 lg:grid-cols-2" : "grid"
+        }
+      >
+        {visibleLocales.map((locale) => (
+          <Field
+            key={locale}
+            label={
+              languageChoice === "bilingual"
+                ? `${label} · ${locale === "en" ? "English" : "Dutch"}`
+                : label
+            }
+          >
+            {multiline ? (
+              <textarea
+                name={`${field}${locale === "en" ? "En" : "Nl"}`}
+                required={required}
+                value={values[locale]}
+                onChange={(event) => onChange(locale, event.target.value)}
+                className={textareaClass}
+              />
+            ) : (
+              <input
+                name={`${field}${locale === "en" ? "En" : "Nl"}`}
+                required={required}
+                value={values[locale]}
+                onChange={(event) => onChange(locale, event.target.value)}
+                className={inputClass}
+              />
+            )}
+          </Field>
+        ))}
+      </div>
+      {hiddenLocales.map((locale) => (
+        <input
+          key={locale}
+          type="hidden"
+          name={`${field}${locale === "en" ? "En" : "Nl"}`}
+          value={values[locale]}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MediaField({
+  label,
+  name,
+  currentName,
+  previewUrl,
+  removeName,
+  remove,
+  onRemove,
+  onFile,
+  help,
+  accept = "image/*",
+  wide = false,
+  previewContain = false,
+}: {
+  label: string;
+  name: string;
+  currentName: string | null;
+  previewUrl: string | null;
+  removeName: string;
+  remove: boolean;
+  onRemove: (checked: boolean) => void;
+  onFile: (file: File | undefined) => void;
+  help?: string;
+  accept?: string;
+  wide?: boolean;
+  previewContain?: boolean;
+}) {
+  return (
+    <div className={wide ? "sm:col-span-2" : undefined}>
+      <Field label={label}>
+        <div className="rounded-2xl border border-black/10 p-3">
+          <div className="flex items-center gap-3">
+            <div
+              className={`grid shrink-0 place-items-center overflow-hidden rounded-xl bg-[#f5f1e8] text-[#9b948a] ${
+                wide ? "h-20 w-32" : "h-16 w-16"
+              }`}
+            >
+              {previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewUrl}
+                  alt=""
+                  className={`h-full w-full ${previewContain ? "object-contain p-2" : "object-cover"}`}
+                />
+              ) : (
+                <ImageIcon size={22} />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-[#6f6860]">
+                {remove
+                  ? "Will be removed when saved"
+                  : currentName || (previewUrl ? "New image selected" : "No image yet")}
+              </p>
+              <input
+                name={name}
+                type="file"
+                accept={accept}
+                className="mt-2 block w-full text-xs file:mr-3 file:rounded-full file:border-0 file:bg-[#211f1c] file:px-3 file:py-1.5 file:font-semibold file:text-white"
+                onChange={(event) => onFile(event.target.files?.[0])}
+              />
+            </div>
+          </div>
+          {help ? <p className="mt-2 text-xs text-[#6f6860]">{help}</p> : null}
+          {currentName || previewUrl ? (
+            <label className="mt-3 flex items-center gap-2 border-t border-black/5 pt-3 text-xs font-medium text-[#6f6860]">
+              <input
+                name={removeName}
+                type="checkbox"
+                checked={remove}
+                onChange={(event) => onRemove(event.target.checked)}
+                className="h-4 w-4 accent-red-600"
+              />
+              Remove this image
+            </label>
+          ) : null}
+        </div>
+      </Field>
+    </div>
+  );
+}
+
+function ColorField({
+  label,
+  name,
+  value,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-semibold text-[#3a352f]">
+      <span>{label}</span>
+      <span className="flex items-center gap-2 rounded-2xl border border-black/10 bg-white p-2">
+        <input
+          type="color"
+          value={value}
+          aria-label={`${label} color picker`}
+          className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border-0 bg-transparent"
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <input
+          name={name}
+          value={value}
+          pattern="#[0-9a-fA-F]{6}"
+          aria-label={`${label} hex value`}
+          className="min-w-0 flex-1 bg-transparent px-1 font-mono text-xs font-medium uppercase outline-none"
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </span>
+    </label>
+  );
+}
+
+function ScaleField({
+  label,
+  name,
+  value,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="rounded-2xl border border-black/10 p-4">
+      <span className="flex items-center justify-between gap-3 text-sm font-semibold text-[#3a352f]">
+        <span className="flex items-center gap-2">
+          <Type size={16} className="text-[#006d77]" />
+          {label}
+        </span>
+        <output>{Math.round(value * 100)}%</output>
+      </span>
+      <input
+        name={name}
+        type="range"
+        min="0.8"
+        max="1.3"
+        step="0.05"
+        value={value}
+        className="mt-4 w-full accent-[#006d77]"
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <span className="mt-1 flex justify-between text-[10px] font-medium text-[#9b948a]">
+        <span>Smaller</span>
+        <span>Default</span>
+        <span>Larger</span>
+      </span>
+    </label>
+  );
+}
+
+function PreviewBrand({
+  logoMode,
+  logoUrl,
+  name,
+  primaryColor,
+}: {
+  logoMode: LogoMode;
+  logoUrl: string | null;
+  name: string;
+  primaryColor: string;
+}) {
+  if (logoMode === "wordmark" && logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={logoUrl} alt={name} className="h-8 w-auto max-w-[65%] object-contain" />
+    );
+  }
+
+  if (logoMode === "wordmark") {
+    return <span className="truncate text-xs font-semibold">{name}</span>;
+  }
+
+  return (
+    <span className="flex min-w-0 items-center gap-2 text-xs font-semibold">
+      <span
+        className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/10"
+        style={{ color: primaryColor }}
+      >
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+        ) : (
+          name.slice(0, 1)
+        )}
+      </span>
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
+function PreviewButton({
+  active,
+  label,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={`grid h-7 w-7 place-items-center rounded-full transition ${
+        active ? "bg-white text-[#211f1c]" : "text-white/60 hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SaveButton({ compact = false }: { compact?: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      disabled={pending}
+      className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-semibold transition disabled:cursor-wait disabled:opacity-60 ${
+        compact
+          ? "bg-white px-4 py-2 text-xs text-[#211f1c]"
+          : "bg-[#006d77] px-5 py-2.5 text-sm text-white hover:-translate-y-0.5 hover:shadow-lg"
+      }`}
+    >
+      <Save size={compact ? 14 : 16} />
+      {pending ? "Saving…" : "Save changes"}
+    </button>
+  );
+}

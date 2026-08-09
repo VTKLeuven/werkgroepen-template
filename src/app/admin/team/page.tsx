@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, UserPlus } from "lucide-react";
 import {
   AdminShell,
   Field,
@@ -7,6 +7,13 @@ import {
   buttonClass,
   inputClass,
 } from "@/components/admin-shell";
+import {
+  LocalizedAdminField,
+  getAdminLanguageConfig,
+  getAdminLocalizedValue,
+  type AdminLanguageConfig,
+} from "@/components/admin-localized-field";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { TeamOrderBoard } from "@/components/team-order-board";
 import {
   deleteTeamMember,
@@ -26,10 +33,14 @@ export default async function TeamPage({
   searchParams: Promise<{ year?: string }>;
 }) {
   await requireAdmin();
-  const params = await searchParams;
-  const years = await prisma.academicYear.findMany({
-    orderBy: [{ sortOrder: "desc" }, { label: "desc" }],
-  });
+  const [params, years, siteSettings] = await Promise.all([
+    searchParams,
+    prisma.academicYear.findMany({
+      orderBy: [{ sortOrder: "desc" }, { label: "desc" }],
+    }),
+    prisma.siteSettings.findUnique({ where: { id: "site" } }),
+  ]);
+  const languageConfig = getAdminLanguageConfig(siteSettings);
   const selectedYear =
     years.find((year) => year.id === params.year) ??
     years.find((year) => year.isCurrent) ??
@@ -57,7 +68,7 @@ export default async function TeamPage({
       <div className="grid gap-6">
         <Panel
           title="Academic years"
-          description="Only the year marked as current is shown on the public website. Older years stay available as an archive."
+          description="Add each year once, then mark the active year as current. Years are listed newest first; older teams remain available here as an archive."
         >
           <div className="mb-5 flex flex-wrap gap-2">
             {years.map((year) => (
@@ -75,25 +86,19 @@ export default async function TeamPage({
               </Link>
             ))}
           </div>
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-            <form action={saveAcademicYear} className="grid gap-3 sm:grid-cols-2">
-              <Field label="New academic year">
-                <input
-                  name="label"
-                  placeholder="2026-2027"
-                  required
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Sort order">
-                <input
-                  name="sortOrder"
-                  type="number"
-                  placeholder="2026"
-                  className={inputClass}
-                />
-              </Field>
-              <button className={`${buttonClass} w-fit sm:col-span-2`}>
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+            <form action={saveAcademicYear} className="flex flex-wrap items-end gap-3">
+              <div className="min-w-56 flex-1">
+                <Field label="New academic year">
+                  <input
+                    name="label"
+                    placeholder="2026-2027"
+                    required
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+              <button className={`${buttonClass} w-fit`}>
                 Add academic year
               </button>
             </form>
@@ -111,14 +116,25 @@ export default async function TeamPage({
         {selectedYear ? (
           <Panel
             title={`Public layout for ${selectedYear.label}`}
-            description="This mirrors the compact team grid on the website. Drag cards to change the order for this academic year."
+            description="This mirrors the compact team grid on the website. Drag cards or use their arrow buttons to set the order for this academic year."
           >
             <TeamOrderBoard
+              key={`${selectedYear.id}:${selectedMemberships
+                .map(
+                  ({ teamMember }) =>
+                    `${teamMember.id}:${teamMember.updatedAt.toISOString()}`,
+                )
+                .join(",")}`}
               academicYearId={selectedYear.id}
               members={selectedMemberships.map(({ teamMember }) => ({
                 id: teamMember.id,
                 name: teamMember.name,
-                functionName: teamMember.functionNameEn || teamMember.functionName,
+                functionName: getAdminLocalizedValue(
+                  languageConfig,
+                  teamMember.functionNameEn,
+                  teamMember.functionNameNl,
+                  teamMember.functionName,
+                ),
                 imageUrl: mediaUrl(teamMember.imageMediaId),
               }))}
             />
@@ -131,7 +147,11 @@ export default async function TeamPage({
               Add a new person
             </summary>
             <div className="mt-4">
-              <TeamForm years={years} selectedYearId={selectedYear?.id} />
+              <TeamForm
+                years={years}
+                selectedYearId={selectedYear?.id}
+                languageConfig={languageConfig}
+              />
             </div>
           </details>
         </Panel>
@@ -160,7 +180,12 @@ export default async function TeamPage({
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate font-semibold">{member.name}</h3>
                       <p className="truncate text-sm text-[#6f6860]">
-                        {member.functionNameEn}
+                        {getAdminLocalizedValue(
+                          languageConfig,
+                          member.functionNameEn,
+                          member.functionNameNl,
+                          member.functionName,
+                        )}
                       </p>
                       <p className="mt-1 text-xs text-[#9b948a]">
                         {member.academicYears
@@ -171,13 +196,14 @@ export default async function TeamPage({
                   </div>
                 </summary>
                 <div className="mt-5">
-                  <TeamForm member={member} years={years} />
+                  <TeamForm
+                    member={member}
+                    years={years}
+                    languageConfig={languageConfig}
+                  />
                   <form action={deleteTeamMember} className="mt-3">
                     <input type="hidden" name="id" value={member.id} />
-                    <button className="inline-flex items-center gap-2 rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-700">
-                      <Trash2 size={15} />
-                      Delete
-                    </button>
+                    <ConfirmDeleteButton itemName={member.name} />
                   </form>
                 </div>
               </details>
@@ -193,6 +219,7 @@ function TeamForm({
   member,
   years,
   selectedYearId,
+  languageConfig,
 }: {
   member?: {
     id: string;
@@ -206,6 +233,7 @@ function TeamForm({
   };
   years: { id: string; label: string; isCurrent: boolean }[];
   selectedYearId?: string;
+  languageConfig: AdminLanguageConfig;
 }) {
   const assignedYearIds = new Set(
     member?.academicYears?.map((year) => year.academicYearId) ??
@@ -224,22 +252,18 @@ function TeamForm({
             className={inputClass}
           />
         </Field>
-        <Field label="Function EN">
-          <input
-            name="functionNameEn"
-            required
-            defaultValue={member?.functionNameEn ?? member?.functionName}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Function NL">
-          <input
-            name="functionNameNl"
-            required
-            defaultValue={member?.functionNameNl ?? member?.functionName}
-            className={inputClass}
-          />
-        </Field>
+        <LocalizedAdminField
+          label="Function"
+          name="functionName"
+          enValue={member?.functionNameEn}
+          nlValue={member?.functionNameNl}
+          fallbackValue={member?.functionName}
+          required
+          className={
+            languageConfig.languageMode === "bilingual" ? "lg:col-span-2" : ""
+          }
+          {...languageConfig}
+        />
         <Field label="Profile URL">
           <input
             name="url"

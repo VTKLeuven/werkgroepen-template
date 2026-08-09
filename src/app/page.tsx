@@ -1,5 +1,5 @@
 import { PublicSite } from "@/components/public-site";
-import { normalizeLocale } from "@/lib/i18n";
+import { resolveLocale } from "@/lib/i18n";
 import { getSiteData } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,11 @@ export default async function Home({
 }) {
   const data = await getSiteData();
   const params = await searchParams;
-  const locale = normalizeLocale(params.lang, data.settings.defaultLocale);
+  const locale = resolveLocale(
+    params.lang,
+    data.settings.defaultLocale,
+    data.settings.languageMode,
+  );
 
   return <PublicSite data={data} locale={locale} />;
 }

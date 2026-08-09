@@ -17,6 +17,25 @@ enum Locale {
   nl
 }
 
+enum LanguageMode {
+  bilingual
+  englishOnly
+  dutchOnly
+}
+
+enum LogoMode {
+  iconWithText
+  wordmark
+}
+
+enum SectionKey {
+  about
+  team
+  events
+  contact
+  partners
+}
+
 model AdminUser {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -26,93 +45,111 @@ model AdminUser {
 }
 
 model SiteSettings {
-  id             String      @id @default("site")
-  defaultLocale  Locale      @default(en)
-  siteName       String      @default("Chemix")
-  siteNameEn     String      @default("Chemix")
-  siteNameNl     String      @default("Chemix")
-  headerName     String      @default("Chemix")
-  headerNameEn   String      @default("Chemix")
-  headerNameNl   String      @default("Chemix")
-  logoMediaId    String?
-  logoMedia      MediaAsset? @relation("SiteLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
-  heroMediaId    String?
-  heroMedia      MediaAsset? @relation("HeroImage", fields: [heroMediaId], references: [id], onDelete: SetNull)
-  heroEyebrow    String      @default("VTK subdivision")
-  heroEyebrowEn  String      @default("VTK subdivision")
-  heroEyebrowNl  String      @default("VTK werkgroep")
-  heroTitle      String      @default("A student community for curious engineers")
-  heroTitleEn    String      @default("A student community for curious engineers")
-  heroTitleNl    String      @default("Een studentencommunity voor nieuwsgierige ingenieurs")
-  heroSlogan     String?
-  heroSloganEn   String?
-  heroSloganNl   String?
-  heroButtonText String?
+  id               String       @id @default("site")
+  defaultLocale    Locale       @default(en)
+  languageMode     LanguageMode @default(bilingual)
+  siteName         String       @default("Chemix")
+  siteNameEn       String       @default("Chemix")
+  siteNameNl       String       @default("Chemix")
+  headerName       String       @default("Chemix")
+  headerNameEn     String       @default("Chemix")
+  headerNameNl     String       @default("Chemix")
+  logoMode         LogoMode     @default(iconWithText)
+  logoMediaId      String?
+  logoMedia        MediaAsset?  @relation("SiteLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
+  faviconMediaId   String?
+  faviconMedia     MediaAsset?  @relation("SiteFavicon", fields: [faviconMediaId], references: [id], onDelete: SetNull)
+  heroMediaId      String?
+  heroMedia        MediaAsset?  @relation("HeroImage", fields: [heroMediaId], references: [id], onDelete: SetNull)
+  heroEyebrow      String       @default("VTK subdivision")
+  heroEyebrowEn    String       @default("VTK subdivision")
+  heroEyebrowNl    String       @default("VTK werkgroep")
+  heroTitle        String       @default("A student community for curious engineers")
+  heroTitleEn      String       @default("A student community for curious engineers")
+  heroTitleNl      String       @default("Een studentencommunity voor nieuwsgierige ingenieurs")
+  heroSlogan       String?
+  heroSloganEn     String?
+  heroSloganNl     String?
+  heroButtonText   String?
   heroButtonTextEn String?
   heroButtonTextNl String?
-  heroButtonUrl  String?
-  aboutTitle     String      @default("About us")
-  aboutTitleEn   String      @default("About us")
-  aboutTitleNl   String      @default("Over ons")
-  aboutText      String      @db.Text
-  aboutTextEn    String      @default("") @db.Text
-  aboutTextNl    String      @default("") @db.Text
-  contactTitle   String      @default("Contact us")
-  contactTitleEn String      @default("Contact us")
-  contactTitleNl String      @default("Contacteer ons")
-  contactText    String?     @db.Text
-  contactTextEn  String?     @db.Text
-  contactTextNl  String?     @db.Text
-  contactEmail   String      @default("hello@example.org")
-  facebookUrl    String?
-  instagramUrl   String?
-  linkedinUrl    String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  heroButtonUrl    String?
+  aboutTitle       String       @default("About us")
+  aboutTitleEn     String       @default("About us")
+  aboutTitleNl     String       @default("Over ons")
+  aboutText        String       @db.Text
+  aboutTextEn      String       @default("") @db.Text
+  aboutTextNl      String       @default("") @db.Text
+  contactTitle     String       @default("Contact us")
+  contactTitleEn   String       @default("Contact us")
+  contactTitleNl   String       @default("Contacteer ons")
+  contactText      String?      @db.Text
+  contactTextEn    String?      @db.Text
+  contactTextNl    String?      @db.Text
+  contactEmail     String       @default("hello@example.org")
+  facebookUrl      String?
+  instagramUrl     String?
+  linkedinUrl      String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 }
 
 model ThemeSettings {
-  id              String   @id @default("theme")
-  backgroundColor String   @default("#f7f3ec")
-  surfaceColor    String   @default("#fffaf2")
-  textColor       String   @default("#231f20")
-  mutedColor      String   @default("#6f6860")
-  primaryColor    String   @default("#006d77")
-  accentColor     String   @default("#f4a261")
-  headerColor     String   @default("#fffaf2")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default("theme")
+  backgroundColor    String   @default("#f7f3ec")
+  surfaceColor       String   @default("#fffaf2")
+  textColor          String   @default("#231f20")
+  mutedColor         String   @default("#6f6860")
+  primaryColor       String   @default("#006d77")
+  accentColor        String   @default("#f4a261")
+  headerColor        String   @default("#fffaf2")
+  bodyFontScale      Float    @default(1)
+  headingFontScale   Float    @default(1)
+  heroTitleFontScale Float    @default(1)
+  heroBodyFontScale  Float    @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MediaAsset {
-  id                    String         @id @default(cuid())
-  fileName              String         @unique
-  originalName          String
-  mimeType              String
-  size                  Int
-  alt                   String?
-  createdAt             DateTime       @default(now())
-  siteLogos             SiteSettings[] @relation("SiteLogo")
-  heroImages            SiteSettings[] @relation("HeroImage")
-  teamMemberPortraits   TeamMember[]   @relation("TeamMemberPortrait")
-  eventPictures         Event[]        @relation("EventPicture")
-  partnerLogos          Partner[]      @relation("PartnerLogo")
+  id                  String         @id @default(cuid())
+  fileName            String         @unique
+  originalName        String
+  mimeType            String
+  size                Int
+  alt                 String?
+  createdAt           DateTime       @default(now())
+  siteLogos           SiteSettings[] @relation("SiteLogo")
+  siteFavicons        SiteSettings[] @relation("SiteFavicon")
+  heroImages          SiteSettings[] @relation("HeroImage")
+  teamMemberPortraits TeamMember[]   @relation("TeamMemberPortrait")
+  eventPictures       Event[]        @relation("EventPicture")
+  partnerLogos        Partner[]      @relation("PartnerLogo")
+}
+
+model SiteSection {
+  key              SectionKey @id
+  sortOrder        Int
+  isVisible        Boolean    @default(true)
+  showInNavigation Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 }
 
 model TeamMember {
-  id          String      @id @default(cuid())
-  name        String
-  functionName String
-  functionNameEn String  @default("")
-  functionNameNl String  @default("")
-  url         String?
-  imageMediaId String?
-  imageMedia  MediaAsset? @relation("TeamMemberPortrait", fields: [imageMediaId], references: [id], onDelete: SetNull)
-  sortOrder   Int         @default(0)
-  isVisible   Boolean     @default(true)
-  academicYears TeamMemberYear[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String           @id @default(cuid())
+  name           String
+  functionName   String
+  functionNameEn String           @default("")
+  functionNameNl String           @default("")
+  url            String?
+  imageMediaId   String?
+  imageMedia     MediaAsset?      @relation("TeamMemberPortrait", fields: [imageMediaId], references: [id], onDelete: SetNull)
+  sortOrder      Int              @default(0)
+  isVisible      Boolean          @default(true)
+  academicYears  TeamMemberYear[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 model AcademicYear {
@@ -137,27 +174,27 @@ model TeamMemberYear {
 }
 
 model Event {
-  id           String      @id @default(cuid())
-  slug         String      @unique
-  title        String
-  titleEn      String      @default("")
-  titleNl      String      @default("")
-  summary      String?
-  summaryEn    String?
-  summaryNl    String?
-  description  String      @db.Text
-  descriptionEn String     @default("") @db.Text
-  descriptionNl String     @default("") @db.Text
-  location     String
-  locationEn   String      @default("")
-  locationNl   String      @default("")
-  startAt      DateTime
-  endAt        DateTime?
+  id             String      @id @default(cuid())
+  slug           String      @unique
+  title          String
+  titleEn        String      @default("")
+  titleNl        String      @default("")
+  summary        String?
+  summaryEn      String?
+  summaryNl      String?
+  description    String      @db.Text
+  descriptionEn  String      @default("") @db.Text
+  descriptionNl  String      @default("") @db.Text
+  location       String
+  locationEn     String      @default("")
+  locationNl     String      @default("")
+  startAt        DateTime
+  endAt          DateTime?
   pictureMediaId String?
   pictureMedia   MediaAsset? @relation("EventPicture", fields: [pictureMediaId], references: [id], onDelete: SetNull)
-  isPublished  Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  isPublished    Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model Partner {

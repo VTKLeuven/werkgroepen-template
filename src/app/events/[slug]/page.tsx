@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, MapPin } from "lucide-react";
 import { formatEventDate, mediaUrl } from "@/lib/format";
-import { localized, normalizeLocale, uiText } from "@/lib/i18n";
+import { localized, localizeHref, resolveLocale, uiText } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { getSiteData } from "@/lib/site";
 
@@ -28,7 +28,11 @@ export default async function EventDetail({
   if (!event || !event.isPublished) notFound();
 
   const image = mediaUrl(event.pictureMediaId);
-  const locale = normalizeLocale(query.lang, site.settings.defaultLocale);
+  const locale = resolveLocale(
+    query.lang,
+    site.settings.defaultLocale,
+    site.settings.languageMode,
+  );
   const text = uiText[locale];
   const eventTitle = localized(locale, event.titleEn, event.titleNl, event.title);
   const eventSummary = localized(
@@ -48,14 +52,23 @@ export default async function EventDetail({
           "--muted": site.theme.mutedColor,
           "--primary": site.theme.primaryColor,
           "--accent": site.theme.accentColor,
+          "--body-font-scale": site.theme.bodyFontScale,
+          "--heading-font-scale": site.theme.headingFontScale,
+          "--hero-title-font-scale": site.theme.heroTitleFontScale,
+          "--hero-body-font-scale": site.theme.heroBodyFontScale,
         } as React.CSSProperties
       }
-      className="min-h-screen bg-[var(--background)] px-4 py-8 text-[var(--text)] sm:px-8"
+      lang={locale}
+      className="public-site min-h-screen bg-[var(--background)] px-4 py-8 text-[var(--text)] sm:px-8"
     >
       <article className="mx-auto max-w-6xl">
         <Link
-          href={`/?lang=${locale}#events`}
-          className="mb-8 inline-flex items-center gap-2 rounded-full bg-[var(--surface)] px-4 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5"
+          href={localizeHref(
+            "/#events",
+            locale,
+            site.settings.languageMode,
+          )}
+          className="site-text-sm mb-8 inline-flex items-center gap-2 rounded-full bg-[var(--surface)] px-4 py-2 font-semibold shadow-sm ring-1 ring-black/5"
         >
           <ArrowLeft size={16} />
           {text.backToEvents}
@@ -71,19 +84,19 @@ export default async function EventDetail({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
-                <div className="grid h-full min-h-72 place-items-center p-8 text-center text-4xl font-semibold text-white lg:min-h-full">
+                <div className="site-event-image-title grid h-full min-h-72 place-items-center p-8 text-center font-semibold text-white lg:min-h-full">
                   {eventTitle}
                 </div>
               )}
             </div>
             <div className="flex flex-col justify-center p-6 sm:p-10 lg:p-12">
-              <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
+              <p className="site-text-sm mb-4 font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
                 {text.events}
               </p>
-              <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
+              <h1 className="site-detail-title font-semibold leading-tight">
                 {eventTitle}
               </h1>
-              <div className="mt-8 grid gap-4 text-[var(--muted)]">
+              <div className="site-text-base mt-8 grid gap-4 text-[var(--muted)]">
                 <span className="flex items-center gap-3">
                   <CalendarDays size={20} />
                   {formatEventDate(
@@ -98,14 +111,14 @@ export default async function EventDetail({
                 </span>
               </div>
               {eventSummary ? (
-                <p className="mt-8 text-2xl leading-10 text-[var(--muted)]">
+                <p className="site-detail-summary mt-8 text-[var(--muted)]">
                   {eventSummary}
                 </p>
               ) : null}
             </div>
           </div>
           <div className="border-t border-black/10 p-6 sm:p-10 lg:p-12">
-            <div className="max-w-3xl whitespace-pre-wrap text-lg leading-8">
+            <div className="site-detail-body max-w-3xl whitespace-pre-wrap">
               {localized(
                 locale,
                 event.descriptionEn,

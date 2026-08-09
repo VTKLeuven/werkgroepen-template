@@ -1,4 +1,4 @@
-import type { Locale } from "@/generated/prisma/client";
+import type { LanguageMode, Locale } from "@/generated/prisma/client";
 
 export const locales = ["en", "nl"] as const;
 export type PublicLocale = (typeof locales)[number];
@@ -9,6 +9,61 @@ export function normalizeLocale(
 ): PublicLocale {
   const candidate = Array.isArray(value) ? value[0] : value;
   return candidate === "nl" || candidate === "en" ? candidate : fallback;
+}
+
+export function isMultilingual(
+  languageMode: LanguageMode | null | undefined = "bilingual",
+) {
+  return languageMode === "bilingual";
+}
+
+export function languageModeLocale(
+  languageMode: LanguageMode | null | undefined,
+  fallback: Locale | PublicLocale = "en",
+): PublicLocale {
+  if (languageMode === "englishOnly") return "en";
+  if (languageMode === "dutchOnly") return "nl";
+  return fallback;
+}
+
+export function resolveLocale(
+  value: string | string[] | null | undefined,
+  fallback: Locale | PublicLocale = "en",
+  languageMode: LanguageMode | null | undefined = "bilingual",
+): PublicLocale {
+  const configuredLocale = languageModeLocale(languageMode, fallback);
+
+  return isMultilingual(languageMode)
+    ? normalizeLocale(value, configuredLocale)
+    : configuredLocale;
+}
+
+export function localizeHref(
+  href: string,
+  locale: PublicLocale,
+  languageMode: LanguageMode | null | undefined = "bilingual",
+) {
+  if (/^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith("//")) {
+    return href;
+  }
+
+  const hashIndex = href.indexOf("#");
+  const hash = hashIndex >= 0 ? href.slice(hashIndex) : "";
+  const pathAndQuery = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
+  const queryIndex = pathAndQuery.indexOf("?");
+  const path =
+    queryIndex >= 0 ? pathAndQuery.slice(0, queryIndex) : pathAndQuery;
+  const query = queryIndex >= 0 ? pathAndQuery.slice(queryIndex + 1) : "";
+  const searchParams = new URLSearchParams(query);
+
+  if (isMultilingual(languageMode)) {
+    searchParams.set("lang", locale);
+  } else {
+    searchParams.delete("lang");
+  }
+
+  const search = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
+  return `${path || "/"}${search}${hash}`;
 }
 
 export function localized(

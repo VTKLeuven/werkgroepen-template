@@ -10,6 +10,14 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
+const defaultSections = [
+  { key: "about", sortOrder: 0 },
+  { key: "team", sortOrder: 1 },
+  { key: "events", sortOrder: 2 },
+  { key: "contact", sortOrder: 3 },
+  { key: "partners", sortOrder: 4 },
+] as const;
+
 async function seedAdmin() {
   const email = process.env.ADMIN_EMAIL?.toLowerCase().trim();
   const password = process.env.ADMIN_PASSWORD;
@@ -54,12 +62,14 @@ async function seedSettings() {
     create: {
       id: "site",
       defaultLocale: "en",
+      languageMode: "bilingual",
       siteName: "Chemix",
       siteNameEn: "Chemix",
       siteNameNl: "Chemix",
       headerName: "Chemix",
       headerNameEn: "Chemix",
       headerNameNl: "Chemix",
+      logoMode: "iconWithText",
       heroEyebrow: "VTK subdivision",
       heroEyebrowEn: "VTK subdivision",
       heroEyebrowNl: "VTK werkgroep",
@@ -113,8 +123,28 @@ async function seedSettings() {
       primaryColor: "#006d77",
       accentColor: "#f4a261",
       headerColor: "#fffaf2",
+      bodyFontScale: 1,
+      headingFontScale: 1,
+      heroTitleFontScale: 1,
+      heroBodyFontScale: 1,
     },
   });
+}
+
+async function seedSections() {
+  await Promise.all(
+    defaultSections.map((section) =>
+      prisma.siteSection.upsert({
+        where: { key: section.key },
+        update: {},
+        create: {
+          ...section,
+          isVisible: true,
+          showInNavigation: true,
+        },
+      }),
+    ),
+  );
 }
 
 async function seedAcademicYears() {
@@ -369,6 +399,7 @@ async function seedContent() {
 async function main() {
   await seedAdmin();
   await seedSettings();
+  await seedSections();
   await seedAcademicYears();
   await seedContent();
 }

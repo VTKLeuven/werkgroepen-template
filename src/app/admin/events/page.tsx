@@ -1,12 +1,19 @@
-import { CalendarPlus, Trash2 } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
 import {
   AdminShell,
   Field,
   Panel,
   buttonClass,
   inputClass,
-  textareaClass,
 } from "@/components/admin-shell";
+import {
+  LocalizedAdminField,
+  getAdminContentLocale,
+  getAdminLanguageConfig,
+  getAdminLocalizedValue,
+  type AdminLanguageConfig,
+} from "@/components/admin-localized-field";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { deleteEvent, saveEvent } from "@/lib/admin-actions";
 import { requireAdmin } from "@/lib/admin";
 import { formatEventDate, mediaUrl } from "@/lib/format";
@@ -16,10 +23,14 @@ export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
   await requireAdmin();
-  const events = await prisma.event.findMany({
-    include: { pictureMedia: true },
-    orderBy: { startAt: "desc" },
-  });
+  const [events, siteSettings] = await Promise.all([
+    prisma.event.findMany({
+      include: { pictureMedia: true },
+      orderBy: { startAt: "desc" },
+    }),
+    prisma.siteSettings.findUnique({ where: { id: "site" } }),
+  ]);
+  const languageConfig = getAdminLanguageConfig(siteSettings);
   const now = new Date();
   const upcomingEvents = events
     .filter((event) => event.startAt >= now)
@@ -35,13 +46,21 @@ export default async function EventsPage() {
               Add a new event
             </summary>
             <div className="mt-4">
-              <EventForm />
+              <EventForm languageConfig={languageConfig} />
             </div>
           </details>
         </Panel>
 
-        <EventList title="Upcoming events" events={upcomingEvents} />
-        <EventList title="Past events" events={pastEvents} />
+        <EventList
+          title="Upcoming events"
+          events={upcomingEvents}
+          languageConfig={languageConfig}
+        />
+        <EventList
+          title="Past events"
+          events={pastEvents}
+          languageConfig={languageConfig}
+        />
       </div>
     </AdminShell>
   );
@@ -50,10 +69,15 @@ export default async function EventsPage() {
 function EventList({
   title,
   events,
+  languageConfig,
 }: {
   title: string;
   events: Awaited<ReturnType<typeof prisma.event.findMany>>;
+  languageConfig: AdminLanguageConfig;
 }) {
+  const dateLocale =
+    getAdminContentLocale(languageConfig) === "nl" ? "nl-BE" : "en-GB";
+
   return (
     <Panel title={title}>
       <div className="grid gap-3">
@@ -62,51 +86,61 @@ function EventList({
             No events in this section.
           </p>
         ) : null}
-        {events.map((event) => (
-          <details
-            key={event.id}
-            className="rounded-3xl border border-black/10 bg-white p-4"
-          >
-            <summary className="cursor-pointer list-none">
-              <div className="flex items-center gap-4">
-                <div className="grid h-20 w-24 place-items-center overflow-hidden rounded-2xl bg-[#f5f1e8] text-center text-xs font-semibold">
-                  {event.pictureMediaId ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={mediaUrl(event.pictureMediaId) ?? ""}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    event.titleEn || event.title
-                  )}
+        {events.map((event) => {
+          const eventTitle = getAdminLocalizedValue(
+            languageConfig,
+            event.titleEn,
+            event.titleNl,
+            event.title,
+          );
+          const eventLocation = getAdminLocalizedValue(
+            languageConfig,
+            event.locationEn,
+            event.locationNl,
+            event.location,
+          );
+
+          return (
+            <details
+              key={event.id}
+              className="rounded-3xl border border-black/10 bg-white p-4"
+            >
+              <summary className="cursor-pointer list-none">
+                <div className="flex items-center gap-4">
+                  <div className="grid h-20 w-24 place-items-center overflow-hidden rounded-2xl bg-[#f5f1e8] text-center text-xs font-semibold">
+                    {event.pictureMediaId ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={mediaUrl(event.pictureMediaId) ?? ""}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      eventTitle
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-semibold">{eventTitle}</h3>
+                    <p className="text-sm text-[#6f6860]">
+                      {formatEventDate(event.startAt, event.endAt, dateLocale)}
+                    </p>
+                    <p className="truncate text-xs text-[#9b948a]">
+                      {eventLocation}
+                      {event.isPublished ? "" : " - Draft"}
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-semibold">
-                    {event.titleEn || event.title}
-                  </h3>
-                  <p className="text-sm text-[#6f6860]">
-                    {formatEventDate(event.startAt, event.endAt)}
-                  </p>
-                  <p className="truncate text-xs text-[#9b948a]">
-                    {event.locationEn || event.location}
-                    {event.isPublished ? "" : " - Draft"}
-                  </p>
-                </div>
+              </summary>
+              <div className="mt-5">
+                <EventForm event={event} languageConfig={languageConfig} />
+                <form action={deleteEvent} className="mt-3">
+                  <input type="hidden" name="id" value={event.id} />
+                  <ConfirmDeleteButton itemName={`event “${eventTitle}”`} />
+                </form>
               </div>
-            </summary>
-            <div className="mt-5">
-              <EventForm event={event} />
-              <form action={deleteEvent} className="mt-3">
-                <input type="hidden" name="id" value={event.id} />
-                <button className="inline-flex items-center gap-2 rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-700">
-                  <Trash2 size={15} />
-                  Delete
-                </button>
-              </form>
-            </div>
-          </details>
-        ))}
+            </details>
+          );
+        })}
       </div>
     </Panel>
   );
@@ -114,6 +148,7 @@ function EventList({
 
 function EventForm({
   event,
+  languageConfig,
 }: {
   event?: {
     id: string;
@@ -134,35 +169,24 @@ function EventForm({
     endAt: Date | null;
     isPublished: boolean;
   };
+  languageConfig: AdminLanguageConfig;
 }) {
   return (
     <form action={saveEvent} className="grid gap-4" encType="multipart/form-data">
       {event ? <input type="hidden" name="id" value={event.id} /> : null}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Field label="Title EN">
-          <input
-            name="titleEn"
-            required
-            defaultValue={event?.titleEn ?? event?.title}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Title NL">
-          <input
-            name="titleNl"
-            required
-            defaultValue={event?.titleNl ?? event?.title}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Slug">
-          <input
-            name="slug"
-            defaultValue={event?.slug ?? ""}
-            className={inputClass}
-            placeholder="Generated from title when empty"
-          />
-        </Field>
+        <LocalizedAdminField
+          label="Title"
+          name="title"
+          enValue={event?.titleEn}
+          nlValue={event?.titleNl}
+          fallbackValue={event?.title}
+          required
+          className={
+            languageConfig.languageMode === "bilingual" ? "lg:col-span-2" : ""
+          }
+          {...languageConfig}
+        />
         <Field label="Start">
           <input
             name="startAt"
@@ -180,60 +204,59 @@ function EventForm({
             className={inputClass}
           />
         </Field>
-        <Field label="Location EN">
-          <input
-            name="locationEn"
-            required
-            defaultValue={event?.locationEn ?? event?.location}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Location NL">
-          <input
-            name="locationNl"
-            required
-            defaultValue={event?.locationNl ?? event?.location}
-            className={inputClass}
-          />
-        </Field>
         <Field label="Picture">
           <input name="picture" type="file" accept="image/*" className={inputClass} />
         </Field>
+        <LocalizedAdminField
+          label="Location"
+          name="location"
+          enValue={event?.locationEn}
+          nlValue={event?.locationNl}
+          fallbackValue={event?.location}
+          required
+          className={
+            languageConfig.languageMode === "bilingual" ? "lg:col-span-2" : ""
+          }
+          {...languageConfig}
+        />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Field label="Summary EN">
-          <input
-            name="summaryEn"
-            defaultValue={event?.summaryEn ?? event?.summary ?? ""}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Summary NL">
-          <input
-            name="summaryNl"
-            defaultValue={event?.summaryNl ?? event?.summary ?? ""}
-            className={inputClass}
-          />
-        </Field>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Field label="Description EN">
-          <textarea
-            name="descriptionEn"
-            required
-            defaultValue={event?.descriptionEn ?? event?.description}
-            className={textareaClass}
-          />
-        </Field>
-        <Field label="Description NL">
-          <textarea
-            name="descriptionNl"
-            required
-            defaultValue={event?.descriptionNl ?? event?.description}
-            className={textareaClass}
-          />
-        </Field>
-      </div>
+      <details className="rounded-2xl border border-black/10 p-4">
+        <summary className="cursor-pointer text-sm font-semibold">
+          Advanced URL setting
+        </summary>
+        <div className="mt-4 max-w-xl">
+          <Field label="Page address">
+            <input
+              name="slug"
+              defaultValue={event?.slug ?? ""}
+              className={inputClass}
+              placeholder="Generated automatically when empty"
+            />
+          </Field>
+          <p className="mt-2 text-xs leading-5 text-[#6f6860]">
+            Most editors can leave this empty. Only change it when you need a
+            specific URL.
+          </p>
+        </div>
+      </details>
+      <LocalizedAdminField
+        label="Summary"
+        name="summary"
+        enValue={event?.summaryEn}
+        nlValue={event?.summaryNl}
+        fallbackValue={event?.summary}
+        {...languageConfig}
+      />
+      <LocalizedAdminField
+        label="Description"
+        name="description"
+        enValue={event?.descriptionEn}
+        nlValue={event?.descriptionNl}
+        fallbackValue={event?.description}
+        required
+        multiline
+        {...languageConfig}
+      />
       <label className="flex items-center gap-3 text-sm font-semibold">
         <input
           name="isPublished"
