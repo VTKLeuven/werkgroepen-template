@@ -30,26 +30,32 @@ jobs:
       - name: Select targets
         id: select
         env:
-          # Add a server here, and add its name to the workflow_dispatch options
-          # above so it can also be deployed on its own. Only register it once the
+          # Add a site here, and add its name to the workflow_dispatch options
+          # above so it can also be deployed on its own. Only add it once the
           # runner with the matching label is online: until then its job sits
           # queued on every push.
           #
-          #   runner      extra label given to that VM's self hosted runner
+          #   runner      label of the self hosted runner on the host VM. Both
+          #               sites share one server, so both use the same label and
+          #               their deploys queue behind each other.
+          #   project     COMPOSE_PROJECT_NAME. MUST be unique per site: both
+          #               deploy directories are called werkgroepen_template, so
+          #               without this Compose would give the two sites the same
+          #               containers and the same volumes.
           #   deploy_dir  absolute path of the git checkout on that VM
-          #   health_url  what the app answers on there. docker-compose.yml
-          #               publishes 3000; a server that maps 80 instead needs
-          #               http://localhost/ (see scripts/deploy.sh).
+          #   health_url  the host port from APP_PORT in that site's .env
           TARGETS: |
             [
               { "name": "best",
-                "runner": "best",
-                "deploy_dir": "/home/bm/werkgroepen-template",
-                "health_url": "http://localhost:3000/" },
+                "runner": "vtk",
+                "project": "best",
+                "deploy_dir": "/home/it/best/werkgroepen_template",
+                "health_url": "http://localhost:8083/" },
               { "name": "chemix",
-                "runner": "chemix",
-                "deploy_dir": "/home/ch/werkgroepen-template",
-                "health_url": "http://localhost:3000/" }
+                "runner": "vtk",
+                "project": "chemix",
+                "deploy_dir": "/home/it/chemix/werkgroepen_template",
+                "health_url": "http://localhost:8082/" }
             ]
           # A push deploys everywhere; a manual run can pick one server.
           WANTED: ${{ inputs.target || 'all' }}
@@ -76,16 +82,17 @@ jobs:
       matrix:
         target: ${{ fromJSON(needs.targets.outputs.matrix) }}
 
-    # The VMs have no public IP, so GitHub cannot reach in over SSH. Each one runs
-    # its own self hosted runner that polls GitHub outbound, and this label is what
-    # routes the job to the right VM.
+    # The VM has no public IP, so GitHub cannot reach in over SSH. It runs a self
+    # hosted runner that polls GitHub outbound, and this label is what routes the
+    # job to it.
     runs-on: [self-hosted, "${{ matrix.target.runner }}"]
     timeout-minutes: 20
 
     # Never let two deploys touch the same directory at once. Queue them instead of
     # cancelling, so a superseded run still finishes cleanly rather than dying
-    # halfway through a compose up. The group is per server, so the servers never
-    # wait on each other.
+    # halfway through a compose up. The group is per site, so a redeploy of best
+    # does not wait on chemix having finished -- though with one runner for both,
+    # the runner itself still runs them one after the other.
     concurrency:
       group: deploy-${{ matrix.target.name }}
       cancel-in-progress: false
@@ -101,6 +108,10 @@ jobs:
           TARGET_NAME: ${{ matrix.target.name }}
           DEPLOY_DIR: ${{ matrix.target.deploy_dir }}
           HEALTH_URL: ${{ matrix.target.health_url }}
+          # Also set in each site's .env so manual docker compose and make
+          # commands on the server hit the right stack. Passed here as well so a
+          # deploy is correct even if someone edits that .env.
+          COMPOSE_PROJECT_NAME: ${{ matrix.target.project }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
           TARGET_SHA: ${{ github.sha }}

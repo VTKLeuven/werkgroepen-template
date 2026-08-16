@@ -70,7 +70,7 @@ deployment:
   "runner": "vtk",
   "project": "best",
   "deploy_dir": "/home/it/best/werkgroepen_template",
-  "health_url": "http://localhost:3000/" }
+  "health_url": "http://localhost:8083/" }
 ```
 
 That list becomes the matrix of the `deploy` job, which runs once per site. The
@@ -84,8 +84,8 @@ release, and each has its own `concurrency` group.
 The subdivisions share a host, one directory each:
 
 ```
-/home/it/best/werkgroepen_template
-/home/it/chemix/werkgroepen_template
+/home/it/best/werkgroepen_template      APP_PORT=8083
+/home/it/chemix/werkgroepen_template    APP_PORT=8082
 ```
 
 Two settings in each site's `.env` keep them apart, and **both must be unique

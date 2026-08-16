@@ -27,7 +27,11 @@ DB_USER="${DB_USER:-werkgroep}"
 DB_NAME="${DB_NAME:-werkgroep}"
 FILE="${FILE:-}"
 CONFIRM="${CONFIRM:-}"
-HEALTH_URL="${HEALTH_URL:-http://localhost:3000/}"
+# Left empty on purpose: the port is taken from this site's APP_PORT once .env is
+# in place. A fixed default would check port 3000, which on a shared server is a
+# different site's site -- the restore would report success having never looked
+# at the site it just restored.
+HEALTH_URL="${HEALTH_URL:-}"
 
 log() { printf '\n=== %s\n' "$*"; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -114,6 +118,11 @@ if [ -n "$local_project$local_port$local_quota" ]; then
         "${local_project:+COMPOSE_PROJECT_NAME=$local_project }" \
         "${local_port:+APP_PORT=$local_port }" \
         "${local_quota:+PHOTO_STORAGE_LIMIT_BYTES=$local_quota}"
+fi
+
+if [ -z "$HEALTH_URL" ]; then
+    app_port="$(env_value APP_PORT .env)"
+    HEALTH_URL="http://localhost:${app_port:-3000}/"
 fi
 
 if [ -z "$local_project" ]; then
