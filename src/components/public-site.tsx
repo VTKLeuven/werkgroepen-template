@@ -8,6 +8,7 @@ import {
   MapPin,
   MessagesSquare,
 } from "lucide-react";
+import { AlbumGrid } from "@/components/album-grid";
 import { MarkdownContent } from "@/components/markdown-content";
 import { CustomPageCover } from "@/components/custom-page-cover";
 import { SiteHeader } from "@/components/site-header";
@@ -33,7 +34,7 @@ export function PublicSite({
   data: SiteData;
   locale: PublicLocale;
 }) {
-  const { settings, theme, teamMembers, events, partners } = data;
+  const { settings, theme, teamMembers, events, partners, photoAlbums } = data;
   const text = uiText[locale];
   const now = new Date();
   const upcomingEvents = events.filter((event) => event.startAt >= now).slice(0, 3);
@@ -310,6 +311,36 @@ export function PublicSite({
                 );
               })}
             </div>
+          </Section>
+        );
+      case "photos":
+        return (
+          <Section
+            key={key}
+            id="photos"
+            eyebrow={text.albums}
+            title={text.photos}
+          >
+            {photoAlbums.length === 0 ? (
+              <p className="rounded-3xl bg-[var(--surface)] p-6 text-[var(--muted)]">
+                {text.nothingYet}
+              </p>
+            ) : (
+              <>
+                <AlbumGrid
+                  albums={photoAlbums}
+                  locale={locale}
+                  languageMode={settings.languageMode}
+                />
+                <Link
+                  href={localizeHref("/photos", locale, settings.languageMode)}
+                  className="site-text-sm mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                >
+                  {text.allAlbums}
+                  <ArrowUpRight size={18} />
+                </Link>
+              </>
+            )}
           </Section>
         );
       default:

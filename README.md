@@ -88,6 +88,59 @@ different site per subdivision.
 To deploy to one server only, run the workflow manually from the Actions tab
 and pick it from the **target** dropdown.
 
+### Moving a site to another server
+
+`make backup` packs the three things that are not in git — the database, the
+uploads volume and `.env` — into one archive. `make restore` loads it on the
+other side. The code is not in the archive: the new server clones that from git.
+
+```bash
+# on the old server
+make backup                       # -> backups/<site>-<timestamp>.tar
+
+# from your laptop
+scp old:~/werkgroepen-template/backups/best-*.tar .
+scp best-*.tar new:~/werkgroepen-template/
+
+# on the new server, after cloning the repo there
+make verify  FILE=best-*.tar                  # look before you leap
+make restore FILE=best-*.tar CONFIRM=yes
+```
+
+`make restore` **replaces everything**: it drops the database, empties the
+uploads volume and overwrites `.env`. It refuses to run without `CONFIRM=yes`,
+and prints the archive's manifest first so you can check you are restoring what
+you think. The `.env` it replaces is kept as `.env.before-restore-<timestamp>`;
+the database and uploads it replaces are gone.
+
+Afterwards, check `AUTH_URL` in `.env` before pointing DNS at the new machine.
+It comes from the archive, so it still names the old host; logging in to
+`/admin` fails while it is wrong.
+
+For a snapshot with no chance of a photo being uploaded halfway through it,
+stop the app first — the backup reads the volume through its own throwaway
+container, so it works fine while the site is down:
+
+```bash
+docker compose stop app && make backup && docker compose start app
+```
+
+The archive is a plain `.tar`, not a `.zip`, and is not gzipped. `zip` cannot
+take its entries from a pipe, so the uploads would have to be written out a
+second time in full before being zipped, and with the photo quota at 10 GB on
+an 18 GB disk there is no room for that. Instead the archive is streamed
+straight out of the container in one pass. Gzipping it would spend minutes of
+VM CPU on photos that are already compressed; the database dump, which does
+compress well, is gzipped on its own inside the archive.
+
+If the archive will not fit on the old server's disk at all, skip the disk:
+
+```bash
+bash scripts/backup.sh --stdout | ssh new 'cat > ~/werkgroepen-template/site.tar'
+```
+
+`make backup` checks for free space first and points you here if it is short.
+
 ### Adding a deployment target
 
 1. **Prepare the VM.** Install Docker and Compose, then create the deployment
@@ -214,11 +267,69 @@ The admin panel manages:
 - Team members with portrait, function, visual ordering, and profile URL
 - Academic years for team archives, with one current year shown publicly
 - Events with image, time, location, summary, detail page, and published state
+- Photo albums with bulk upload, automatic compression, a cover photo, a
+  draft/published state, whole-album download, and a shared storage allowance
 - Partners with logo, website URL, visual ordering, and visibility
 
 Settings and all content forms automatically adapt to the configured language
 mode. Existing translations are kept when a site temporarily switches to a
 single language.
+
+## Photo albums
+
+Albums live at `/photos`, with one page per album. In the admin, **Photos**
+creates albums, uploads into them, and downloads or deletes them. Photos is a
+normal entry in the header order, so it can be reordered or hidden from the
+navigation like any other section — it just links to its own page instead of
+scrolling to a block on the homepage. An album stays invisible to visitors until
+it is published, and its photos 404 for anyone who is not signed in.
+
+### What happens to an uploaded photo
+
+Every upload is re-encoded on arrival; the original file is never stored.
+
+- Scaled to fit **2560×2560**, never upscaled, EXIF rotation applied first
+- Saved as progressive **mozjpeg at quality 82**
+- A **640px WebP thumbnail** is saved alongside it for the grids
+- All metadata is dropped, which also strips **GPS coordinates** from photos
+  before they are published
+- Transparency is flattened onto white instead of turning black
+
+Measured on real 6000×6000 camera photos, a 12 MB upload is stored as roughly
+200 KB, and a noisy high-ISO photo around 400 KB. The 10 GB allowance therefore
+holds on the order of 25,000–50,000 photos. Uploads go a few at a time rather
+than in one request, so a dropped connection costs a handful of photos instead of
+the whole evening's upload.
+
+HEIC files straight from an iPhone are rejected with a message saying so: the
+prebuilt `sharp` binaries cannot decode them. Export as JPEG first.
+
+### The storage allowance
+
+All albums share one ceiling, `PHOTO_STORAGE_LIMIT_BYTES`, defaulting to 10 GB.
+The admin shows a meter, turns it amber past 75%, red past 90%, and refuses
+uploads once it is full — there is no automatic deletion, so the werkgroep
+chooses what to keep. The check runs against the *compressed* size, so a photo
+that fits after compression is accepted even when the original would not have
+been.
+
+Only album photos count toward it. Logos, hero images and event pictures are
+`MediaAsset` rows and are small enough not to matter.
+
+The allowance exists because the VM has 18 GB of disk in total, shared with
+Postgres, the Docker images and the OS. Raising it past roughly 12 GB risks
+filling the disk, which takes the whole site down rather than just refusing an
+upload.
+
+### Downloading an album
+
+**Download album** streams a ZIP built on the fly, holding one photo in memory at
+a time — a 5 GB album is never staged on disk, which would not fit anyway. The
+photos are stored uncompressed inside the archive because JPEGs do not deflate,
+and files keep the names they were uploaded with. Downloads require a signed-in
+admin.
+
+## Markdown
 
 Markdown is rendered without raw HTML. The editor supports headings, bold,
 italics, code blocks, links, uploaded images, lists, quotes, and horizontal

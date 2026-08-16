@@ -43,3 +43,7 @@ next-env.d.ts
 
 /src/generated/prisma
 /uploads
+
+# Archives written by 'make backup'. These contain .env, so they hold the
+# database password, the auth secret and the admin password -- never commit one.
+/backups

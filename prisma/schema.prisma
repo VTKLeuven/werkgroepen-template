@@ -73,6 +73,7 @@ enum SectionKey {
   events
   contact
   partners
+  photos
 }
 
 model AdminUser {
@@ -265,6 +266,49 @@ model Partner {
   isVisible   Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+}
+
+// Album photos deliberately do NOT reuse MediaAsset. They are bulk uploaded and
+// bulk deleted, they carry their own compressed derivative plus a thumbnail, and
+// they are the only media that grows without bound, so they get their own table
+// whose rows can be summed for the storage quota (see src/lib/photos.ts).
+model PhotoAlbum {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  titleEn       String    @default("")
+  titleNl       String    @default("")
+  descriptionEn String?   @db.Text
+  descriptionNl String?   @db.Text
+  takenOn       DateTime?
+  coverPhotoId  String?   @unique
+  coverPhoto    Photo?    @relation("AlbumCover", fields: [coverPhotoId], references: [id], onDelete: SetNull)
+  photos        Photo[]   @relation("AlbumPhotos")
+  isPublished   Boolean   @default(false)
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
+model Photo {
+  id           String      @id @default(cuid())
+  albumId      String
+  album        PhotoAlbum  @relation("AlbumPhotos", fields: [albumId], references: [id], onDelete: Cascade)
+  // Both files live in UPLOAD_DIR. size/thumbSize are the bytes actually on disk
+  // after compression, which is what the storage quota counts.
+  fileName     String      @unique
+  thumbName    String      @unique
+  originalName String
+  size         Int
+  thumbSize    Int
+  width        Int
+  height       Int
+  sortOrder    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  coverOf      PhotoAlbum? @relation("AlbumCover")
+
+  @@index([albumId, sortOrder])
 }
 
 model CustomPage {

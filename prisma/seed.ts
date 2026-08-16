@@ -16,6 +16,7 @@ const defaultSections = [
   { key: "events", sortOrder: 2, homepageOrder: 2 },
   { key: "contact", sortOrder: 3, homepageOrder: 3 },
   { key: "partners", sortOrder: 4, homepageOrder: 4 },
+  { key: "photos", sortOrder: 5, homepageOrder: 5 },
 ] as const;
 
 async function seedAdmin() {

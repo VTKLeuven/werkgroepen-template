@@ -7,6 +7,7 @@ import {
   Files,
   Handshake,
   House,
+  Images,
   LayoutDashboard,
   Menu,
   Settings,
@@ -22,6 +23,7 @@ const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/pages", label: "Pages", icon: Files },
   { href: "/admin/team", label: "Team", icon: Users },
   { href: "/admin/events", label: "Events", icon: CalendarDays },
+  { href: "/admin/photos", label: "Photos", icon: Images },
   { href: "/admin/partners", label: "Partners", icon: Handshake },
 ];
 

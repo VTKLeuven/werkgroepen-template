@@ -18,6 +18,7 @@ export async function getSiteData() {
     events,
     partners,
     customPages,
+    photoAlbums,
   ] =
     await Promise.all([
       prisma.siteSettings.findUnique({
@@ -67,6 +68,22 @@ export async function getSiteData() {
         },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       }),
+      // Only what the homepage preview strip needs; the full grid is fetched by
+      // /photos itself.
+      prisma.photoAlbum.findMany({
+        where: { isPublished: true },
+        select: {
+          id: true,
+          slug: true,
+          titleEn: true,
+          titleNl: true,
+          takenOn: true,
+          coverPhotoId: true,
+          _count: { select: { photos: true } },
+        },
+        orderBy: [{ takenOn: "desc" }, { createdAt: "desc" }],
+        take: 4,
+      }),
     ]);
 
   const storedSectionKeys = new Set(sections.map((section) => section.key));
@@ -84,6 +101,7 @@ export async function getSiteData() {
     events,
     partners,
     customPages,
+    photoAlbums,
   };
 }
 
@@ -218,6 +236,15 @@ export const defaultSections = [
     key: "partners" as const,
     sortOrder: 4,
     homepageOrder: 4,
+    isVisible: true,
+    showInNavigation: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    key: "photos" as const,
+    sortOrder: 5,
+    homepageOrder: 5,
     isVisible: true,
     showInNavigation: true,
     createdAt: new Date(),

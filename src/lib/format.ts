@@ -35,3 +35,20 @@ export function formatEventDate(
 export function mediaUrl(id?: string | null) {
   return id ? `/media/${id}` : null;
 }
+
+/**
+ * Album photos are served from their own route, not /media: they are rows in
+ * Photo rather than MediaAsset, and they come in two sizes.
+ */
+export function photoUrl(id?: string | null, size: "full" | "thumb" = "full") {
+  if (!id) return null;
+  return size === "thumb" ? `/photo/${id}?size=thumb` : `/photo/${id}`;
+}
+
+export function formatAlbumDate(date: Date, locale = "en-GB") {
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}

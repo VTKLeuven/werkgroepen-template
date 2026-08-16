@@ -17,7 +17,7 @@ import {
 
 export type EditableSection = {
   type: "section";
-  key: "about" | "team" | "events" | "contact" | "partners";
+  key: "about" | "team" | "events" | "contact" | "partners" | "photos";
   sortOrder: number;
   homepageOrder: number;
   isVisible: boolean;
@@ -47,6 +47,10 @@ const sectionText: Record<
   events: { title: "Events", description: "Upcoming and previous events" },
   contact: { title: "Contact", description: "Email and social links" },
   partners: { title: "Partners", description: "Partner logos and links" },
+  photos: {
+    title: "Photos",
+    description: "Photo albums, on their own page at /photos",
+  },
 };
 
 function itemId(item: EditableNavigationItem) {

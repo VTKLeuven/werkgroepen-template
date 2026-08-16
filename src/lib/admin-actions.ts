@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/admin";
 import { slugify } from "@/lib/format";
 import type { HeroTextPosition } from "@/lib/hero-layout";
 import { saveUploadedImage } from "@/lib/media";
+import { removePhotoFiles } from "@/lib/photos";
 import { prisma } from "@/lib/prisma";
 
 function value(formData: FormData, key: string) {
@@ -953,6 +954,187 @@ export async function deleteCustomPage(formData: FormData) {
   revalidatePath(`/pages/${page.slug}`);
 }
 
+async function availableAlbumSlug(input: string, currentId?: string | null) {
+  const base = slugify(input) || "album";
+  let candidate = base;
+  let suffix = 2;
+
+  while (true) {
+    const existing = await prisma.photoAlbum.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    });
+
+    if (!existing || existing.id === currentId) return candidate;
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+}
+
+function revalidateAlbum(slug?: string | null) {
+  revalidatePath("/");
+  revalidatePath("/photos");
+  revalidatePath("/admin/photos");
+  if (slug) revalidatePath(`/photos/${slug}`);
+}
+
+export async function savePhotoAlbum(formData: FormData) {
+  await requireAdmin();
+
+  const id = nullableValue(formData, "id");
+  const [language, previousAlbum, lastAlbum] = await Promise.all([
+    currentLanguageConfiguration(),
+    id
+      ? prisma.photoAlbum.findUnique({
+          where: { id },
+          select: {
+            slug: true,
+            titleEn: true,
+            titleNl: true,
+            descriptionEn: true,
+            descriptionNl: true,
+            sortOrder: true,
+          },
+        })
+      : Promise.resolve(null),
+    id
+      ? Promise.resolve(null)
+      : prisma.photoAlbum.findFirst({
+          orderBy: { sortOrder: "desc" },
+          select: { sortOrder: true },
+        }),
+  ]);
+
+  const title = localizedFormValues(formData, "title", {
+    en: previousAlbum?.titleEn,
+    nl: previousAlbum?.titleNl,
+  });
+  const publicTitle = canonical(language.primaryLocale, title);
+
+  if (!publicTitle) throw new Error("The album needs a title.");
+
+  if (!id && language.languageMode !== "bilingual") {
+    const secondaryLocale = language.primaryLocale === "en" ? "nl" : "en";
+    title[secondaryLocale] ||= publicTitle;
+  }
+
+  const description = localizedFormValues(
+    formData,
+    "description",
+    { en: previousAlbum?.descriptionEn, nl: previousAlbum?.descriptionNl },
+    true,
+  );
+  const slug = await availableAlbumSlug(
+    value(formData, "slug") || publicTitle,
+    id,
+  );
+  const data = {
+    slug,
+    titleEn: title.en,
+    titleNl: title.nl,
+    descriptionEn: description.en || null,
+    descriptionNl: description.nl || null,
+    takenOn: dateValue(formData, "takenOn"),
+    isPublished: formData.get("isPublished") === "on",
+    sortOrder: previousAlbum?.sortOrder ?? (lastAlbum?.sortOrder ?? -1) + 1,
+  };
+
+  const album = id
+    ? await prisma.photoAlbum.update({ where: { id }, data })
+    : await prisma.photoAlbum.create({ data });
+
+  revalidateAlbum(album.slug);
+  if (previousAlbum && previousAlbum.slug !== album.slug) {
+    revalidatePath(`/photos/${previousAlbum.slug}`);
+  }
+
+  // A new album is useless until it has photos, so drop the admin straight into
+  // it with the uploader open.
+  if (!id) {
+    redirect(`/admin/photos?album=${album.id}`);
+  }
+}
+
+export async function deletePhotoAlbum(formData: FormData) {
+  await requireAdmin();
+
+  const id = value(formData, "id");
+  const album = await prisma.photoAlbum.findUnique({
+    where: { id },
+    select: {
+      slug: true,
+      photos: { select: { fileName: true, thumbName: true } },
+    },
+  });
+
+  if (!album) return;
+
+  // Delete the rows first. If the unlinks fail halfway the quota is still
+  // correct; the reverse order could leave rows pointing at missing files.
+  await prisma.photoAlbum.delete({ where: { id } });
+  await removePhotoFiles(
+    album.photos.flatMap((photo) => [photo.fileName, photo.thumbName]),
+  );
+
+  revalidateAlbum(album.slug);
+}
+
+export async function deletePhoto(formData: FormData) {
+  await requireAdmin();
+
+  const id = value(formData, "id");
+  const photo = await prisma.photo.findUnique({
+    where: { id },
+    select: {
+      fileName: true,
+      thumbName: true,
+      albumId: true,
+      album: { select: { slug: true, coverPhotoId: true } },
+    },
+  });
+
+  if (!photo) return;
+
+  await prisma.photo.delete({ where: { id } });
+  await removePhotoFiles([photo.fileName, photo.thumbName]);
+
+  // The cover is set to null by the database; give the album a new one so it
+  // does not fall back to a blank card in the grid.
+  if (photo.album.coverPhotoId === id) {
+    const replacement = await prisma.photo.findFirst({
+      where: { albumId: photo.albumId },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true },
+    });
+
+    await prisma.photoAlbum.update({
+      where: { id: photo.albumId },
+      data: { coverPhotoId: replacement?.id ?? null },
+    });
+  }
+
+  revalidateAlbum(photo.album.slug);
+}
+
+export async function setAlbumCover(formData: FormData) {
+  await requireAdmin();
+
+  const photoId = value(formData, "photoId");
+  const photo = await prisma.photo.findUnique({
+    where: { id: photoId },
+    select: { albumId: true, album: { select: { slug: true } } },
+  });
+
+  if (!photo) return;
+
+  await prisma.photoAlbum.update({
+    where: { id: photo.albumId },
+    data: { coverPhotoId: photoId },
+  });
+
+  revalidateAlbum(photo.album.slug);
+}
+
 export async function saveEvent(formData: FormData) {
   await requireAdmin();
 
@@ -1146,7 +1328,13 @@ export async function updatePartnerOrder(orderedIds: string[]) {
   revalidatePath("/admin/partners");
 }
 
-type SiteSectionKey = "about" | "team" | "events" | "contact" | "partners";
+type SiteSectionKey =
+  | "about"
+  | "team"
+  | "events"
+  | "contact"
+  | "partners"
+  | "photos";
 
 type HomepageSectionInput = {
   key: SiteSectionKey;
@@ -1163,6 +1351,7 @@ const siteSectionKeys = new Set<SiteSectionKey>([
   "events",
   "contact",
   "partners",
+  "photos",
 ]);
 
 export async function updateHomepageSections(items: HomepageSectionInput[]) {

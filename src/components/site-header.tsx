@@ -42,7 +42,12 @@ export function SiteHeader({
     events: text.events,
     contact: text.contact,
     partners: text.partners,
+    photos: text.photos,
   };
+  // Every other section is a block on the homepage, reached by anchor. Photos is
+  // a page of its own, so it navigates instead of jumping.
+  const sectionHref = (key: SectionKey) =>
+    key === "photos" ? "/photos" : `/#${key}`;
   const navigationItems = [
     ...sections.map((section) => ({
       type: "section" as const,
@@ -60,14 +65,31 @@ export function SiteHeader({
       {navigationItems.map((item) => {
         if (item.type === "section") {
           const { section } = item;
+          const href = localizeHref(
+            sectionHref(section.key),
+            locale,
+            settings.languageMode,
+          );
+
+          if (section.key === "photos") {
+            return (
+              <Link
+                key={`section:${section.key}`}
+                href={href}
+                aria-current={
+                  currentPath.startsWith("/photos") ? "page" : undefined
+                }
+                className="whitespace-nowrap transition hover:text-[var(--text)] aria-[current=page]:text-[var(--primary)]"
+              >
+                {labels[section.key]}
+              </Link>
+            );
+          }
+
           return (
             <a
               key={`section:${section.key}`}
-              href={localizeHref(
-                `/#${section.key}`,
-                locale,
-                settings.languageMode,
-              )}
+              href={href}
               className="whitespace-nowrap transition hover:text-[var(--text)]"
             >
               {labels[section.key]}
