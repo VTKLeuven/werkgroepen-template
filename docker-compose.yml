@@ -20,8 +20,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # One host port per site. Several subdivisions share a server now, so they
+    # cannot all take 3000: set APP_PORT in .env and point the proxy at it.
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     # Reads AUTH_SECRET, AUTH_URL, ADMIN_EMAIL, ADMIN_PASSWORD from .env.
     # format: raw passes values through literally, so a "$" in a password
     # survives. It also means quotes are NOT stripped -- write values

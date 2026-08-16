@@ -76,8 +76,57 @@ if [ -f .env ]; then
     cp .env ".env.before-restore-$stamp"
 fi
 
+env_value() {
+    [ -f "$2" ] || return 0
+    sed -n "s/^$1=//p" "$2" | head -1
+}
+
+set_env_value() {
+    [ -n "$2" ] || return 0
+    if grep -q "^$1=" .env; then
+        sed -i.bak "s|^$1=.*|$1=$2|" .env && rm -f .env.bak
+    else
+        printf '%s=%s\n' "$1" "$2" >>.env
+    fi
+}
+
+# These three describe where this site sits on THIS server rather than what the
+# site is, so they stay behind while everything else comes from the archive.
+#
+# COMPOSE_PROJECT_NAME matters most: without it, restoring best's archive here
+# would install best's old .env, Compose would fall back to the directory name --
+# identical for every site, since they are all called werkgroepen_template -- and
+# the restore would fill volumes that the next 'docker compose up' no longer
+# looks at. APP_PORT and the photo budget are likewise properties of the machine
+# this site landed on, not of the site itself.
+local_project="${COMPOSE_PROJECT_NAME:-$(env_value COMPOSE_PROJECT_NAME .env)}"
+local_port="${APP_PORT:-$(env_value APP_PORT .env)}"
+local_quota="${PHOTO_STORAGE_LIMIT_BYTES:-$(env_value PHOTO_STORAGE_LIMIT_BYTES .env)}"
+
 log "installing .env from the archive"
 cp "$payload/.env" .env
+set_env_value COMPOSE_PROJECT_NAME "$local_project"
+set_env_value APP_PORT "$local_port"
+set_env_value PHOTO_STORAGE_LIMIT_BYTES "$local_quota"
+
+if [ -n "$local_project$local_port$local_quota" ]; then
+    printf 'kept from this server: %s%s%s\n' \
+        "${local_project:+COMPOSE_PROJECT_NAME=$local_project }" \
+        "${local_port:+APP_PORT=$local_port }" \
+        "${local_quota:+PHOTO_STORAGE_LIMIT_BYTES=$local_quota}"
+fi
+
+if [ -z "$local_project" ]; then
+    cat >&2 <<EOF
+
+warning: COMPOSE_PROJECT_NAME is not set for this site.
+
+Compose will name the project after the directory, which is fine for a server
+that hosts one site. If this server hosts more than one, set it in .env before
+restoring -- two sites whose directories share a name also share their database
+and uploads volumes.
+EOF
+fi
 
 log "starting the database"
 # Only the database. The app must not boot against a schema that is about to be

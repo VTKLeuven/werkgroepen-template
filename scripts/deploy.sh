@@ -17,11 +17,16 @@
 # what keeps each server's own .env (database password, AUTH_URL, admin credentials)
 # in place across deploys.
 #
-# Note on ports: docker-compose.yml publishes the app on 3000, while Caddy on
-# proxy-vm reverse proxies to port 80 of the VM. If you need 80, put the mapping in
-# an untracked docker-compose.override.yml on the server and set HEALTH_URL to match.
+# Note on ports: several subdivisions share one server, so each site publishes on
+# its own host port, set as APP_PORT in that site's .env, and Caddy on proxy-vm
+# routes each hostname to the matching port. HEALTH_URL must agree with APP_PORT.
 # Do not edit docker-compose.yml in place on the server: it is tracked, so the
 # git reset below reverts it on the next deploy and the site goes dark.
+#
+# Note on COMPOSE_PROJECT_NAME: it namespaces the containers and volumes. Both
+# sites live in a directory called werkgroepen_template, and Compose would
+# otherwise derive the same project name for both and point them at one another's
+# database and uploads. It is set in each site's .env and passed by the workflow.
 
 set -Eeuo pipefail
 
@@ -50,7 +55,20 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 previous_sha="$(git rev-parse HEAD)"
-log "deploying to $TARGET_NAME in $DEPLOY_DIR, currently at $previous_sha"
+
+# Which Compose project this deploy will act on, resolved the way Compose itself
+# does it: the environment first, then .env, then the directory name. On a shared
+# server the wrong value here means deploying one site on top of another's
+# containers and volumes, so every deploy says which stack it touched.
+project="${COMPOSE_PROJECT_NAME:-}"
+if [ -z "$project" ] && [ -f .env ]; then
+    project="$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' .env | head -1)"
+fi
+if [ -z "$project" ]; then
+    project="$(basename "$PWD") (from the directory name)"
+fi
+
+log "deploying $TARGET_NAME into $DEPLOY_DIR as compose project '$project', currently at $previous_sha"
 
 rollback() {
     log "DEPLOY FAILED on $TARGET_NAME, rolling back to $previous_sha"

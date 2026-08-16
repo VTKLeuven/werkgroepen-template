@@ -85,6 +85,16 @@ $COMPOSE exec -T db pg_dump --no-owner --no-acl -U "$DB_USER" -d "$DB_NAME" |
 
 cp .env "$staging/.env"
 
+# Deliberately not packed: an override file is about how this particular server
+# runs the site, and blindly reinstalling one that maps a fixed host port would
+# collide with the other sites on a shared machine. Say so rather than let it
+# vanish silently.
+if [ -f docker-compose.override.yml ]; then
+    printf '\nnote: docker-compose.override.yml exists here and is NOT in the archive.\n' >&2
+    printf 'Review it by hand; on a shared server, a fixed port mapping in it will\n' >&2
+    printf 'clash with the other sites. Use APP_PORT in .env instead.\n' >&2
+fi
+
 count() {
     $COMPOSE exec -T db psql -tAq -U "$DB_USER" -d "$DB_NAME" -c "$1" 2>/dev/null |
         tr -dc '0-9' || true
