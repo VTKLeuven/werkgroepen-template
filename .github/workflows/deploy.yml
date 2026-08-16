@@ -1,24 +1,94 @@
-name: Deploy to best
+name: Deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
-# Never let two deploys touch the same directory at once. Queue them instead of
-# cancelling, so a superseded run still finishes cleanly rather than dying halfway
-# through a compose up.
-concurrency:
-  group: deploy-best
-  cancel-in-progress: false
+    inputs:
+      target:
+        description: Which server to deploy to
+        type: choice
+        default: all
+        options:
+          - all
+          - best
+          - chemix
 
 permissions:
   contents: read
 
 jobs:
+  # The list of servers lives here, in one place. The job exists because a matrix
+  # cannot be filtered by a workflow input on its own: `matrix` is not available in
+  # a job level `if`, so a condition there would silently skip every server.
+  targets:
+    name: select targets
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - name: Select targets
+        id: select
+        env:
+          # Add a server here, and add its name to the workflow_dispatch options
+          # above so it can also be deployed on its own. Only register it once the
+          # runner with the matching label is online: until then its job sits
+          # queued on every push.
+          #
+          #   runner      extra label given to that VM's self hosted runner
+          #   deploy_dir  absolute path of the git checkout on that VM
+          #   health_url  what the app answers on there. docker-compose.yml
+          #               publishes 3000; a server that maps 80 instead needs
+          #               http://localhost/ (see scripts/deploy.sh).
+          TARGETS: |
+            [
+              { "name": "best",
+                "runner": "best",
+                "deploy_dir": "/home/bm/werkgroepen-template",
+                "health_url": "http://localhost:3000/" },
+              { "name": "chemix",
+                "runner": "chemix",
+                "deploy_dir": "/home/ch/werkgroepen-template",
+                "health_url": "http://localhost:3000/" }
+            ]
+          # A push deploys everywhere; a manual run can pick one server.
+          WANTED: ${{ inputs.target || 'all' }}
+        run: |
+          set -euo pipefail
+          if [ "$WANTED" = all ]; then
+            matrix="$(jq -c . <<<"$TARGETS")"
+          else
+            matrix="$(jq -c --arg n "$WANTED" '[.[] | select(.name == $n)]' <<<"$TARGETS")"
+          fi
+          if [ "$(jq length <<<"$matrix")" -eq 0 ]; then
+            echo "error: no server named '$WANTED' in TARGETS" >&2
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "deploying to: $(jq -r '[.[].name] | join(", ")' <<<"$matrix")"
+
   deploy:
-    runs-on: [self-hosted, best]
+    needs: targets
+    name: ${{ matrix.target.name }}
+    # One server being unreachable must not stop the others getting the release.
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.targets.outputs.matrix) }}
+
+    # The VMs have no public IP, so GitHub cannot reach in over SSH. Each one runs
+    # its own self hosted runner that polls GitHub outbound, and this label is what
+    # routes the job to the right VM.
+    runs-on: [self-hosted, "${{ matrix.target.runner }}"]
     timeout-minutes: 20
+
+    # Never let two deploys touch the same directory at once. Queue them instead of
+    # cancelling, so a superseded run still finishes cleanly rather than dying
+    # halfway through a compose up. The group is per server, so the servers never
+    # wait on each other.
+    concurrency:
+      group: deploy-${{ matrix.target.name }}
+      cancel-in-progress: false
 
     steps:
       - name: Check out the pushed commit
@@ -28,13 +98,11 @@ jobs:
 
       - name: Deploy
         env:
-          DEPLOY_DIR: /home/bm/werkgroepen-template
+          TARGET_NAME: ${{ matrix.target.name }}
+          DEPLOY_DIR: ${{ matrix.target.deploy_dir }}
+          HEALTH_URL: ${{ matrix.target.health_url }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
           TARGET_SHA: ${{ github.sha }}
           GIT_TOKEN: ${{ github.token }}
-          # docker-compose.yml publishes the app on 3000. Caddy on proxy-vm targets
-          # port 80 of this VM, so if the server maps 80 instead, change this to
-          # http://localhost/ (see the note in scripts/deploy.sh).
-          HEALTH_URL: http://localhost:3000/
         run: bash scripts/deploy.sh

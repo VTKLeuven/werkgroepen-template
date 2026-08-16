@@ -1,23 +1,31 @@
 #!/usr/bin/env bash
 #
-# Deploy werkgroepen-template on the best VM (10.10.10.12).
+# Deploy werkgroepen-template on the server this runs on.
 #
-# Driven by .github/workflows/deploy.yml on the self hosted runner, but it is a plain
-# script: run it by hand on the server to debug a failed deploy.
+# The script is server agnostic: every deployment (best, chemix, ...) runs this same
+# file, and .github/workflows/deploy.yml passes the per server values (TARGET_NAME,
+# DEPLOY_DIR, HEALTH_URL) as environment variables from its matrix. Nothing here may
+# hardcode a single server.
+#
+# Driven by that workflow on the self hosted runner, but it is a plain script: run it
+# by hand on the server to debug a failed deploy.
 #
 #   cd ~/werkgroepen-template && bash scripts/deploy.sh
 #
 # It deploys into DEPLOY_DIR rather than into the runner workspace, so .env and any
-# bind mounted data stay where they are. Untracked files are never removed.
+# bind mounted data stay where they are. Untracked files are never removed, which is
+# what keeps each server's own .env (database password, AUTH_URL, admin credentials)
+# in place across deploys.
 #
 # Note on ports: docker-compose.yml publishes the app on 3000, while Caddy on
-# proxy-vm reverse proxies to port 80 of this VM. If you need 80, put the mapping in
+# proxy-vm reverse proxies to port 80 of the VM. If you need 80, put the mapping in
 # an untracked docker-compose.override.yml on the server and set HEALTH_URL to match.
 # Do not edit docker-compose.yml in place on the server: it is tracked, so the
 # git reset below reverts it on the next deploy and the site goes dark.
 
 set -Eeuo pipefail
 
+TARGET_NAME="${TARGET_NAME:-$(hostname -s 2>/dev/null || echo this server)}"
 DEPLOY_DIR="${DEPLOY_DIR:-$HOME/werkgroepen-template}"
 BRANCH="${BRANCH:-main}"
 TARGET_SHA="${TARGET_SHA:-}"
@@ -42,13 +50,13 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 previous_sha="$(git rev-parse HEAD)"
-log "deploy dir $DEPLOY_DIR, currently at $previous_sha"
+log "deploying to $TARGET_NAME in $DEPLOY_DIR, currently at $previous_sha"
 
 rollback() {
-    log "DEPLOY FAILED, rolling back to $previous_sha"
+    log "DEPLOY FAILED on $TARGET_NAME, rolling back to $previous_sha"
     git reset --hard "$previous_sha" || true
     docker compose up -d --build --remove-orphans || true
-    echo "rolled back. Check 'docker compose logs' on best for the cause." >&2
+    echo "rolled back. Check 'docker compose logs' on $TARGET_NAME for the cause." >&2
 }
 trap rollback ERR
 
@@ -85,8 +93,8 @@ if [ -x scripts/post-deploy.sh ]; then
     ./scripts/post-deploy.sh
 fi
 
-# 5. The site has to answer on port 80 of this VM, that is what Caddy on proxy-vm
-#    reverse proxies to. If it does not come back, the deploy is a failure.
+# 5. The site has to answer on the VM port Caddy on proxy-vm reverse proxies to.
+#    If it does not come back, the deploy is a failure.
 log "waiting for $HEALTH_URL"
 healthy=false
 for _ in $(seq 1 "$HEALTH_RETRIES"); do
@@ -126,4 +134,4 @@ else
     log "skipping Docker cleanup because PRUNE_DOCKER=$PRUNE_DOCKER"
 fi
 
-log "deployed $(git rev-parse --short HEAD) to best"
+log "deployed $(git rev-parse --short HEAD) to $TARGET_NAME"

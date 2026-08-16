@@ -59,6 +59,83 @@ volumes are never pruned, so PostgreSQL data and uploaded media are preserved.
 Set `PRUNE_DOCKER=false` when running `scripts/deploy.sh` manually to skip this
 cleanup for a diagnostic deployment.
 
+## Deployment
+
+`.github/workflows/deploy.yml` deploys every push to `main` to all servers at
+once. The server list is the `TARGETS` JSON in its `targets` job — one entry
+per deployment:
+
+```json
+{ "name": "best",
+  "runner": "best",
+  "deploy_dir": "/home/bm/werkgroepen-template",
+  "health_url": "http://localhost:3000/" }
+```
+
+That list becomes the matrix of the `deploy` job, which runs once per server.
+The servers have no public IP, so there is no SSH from GitHub: each VM runs its
+own self-hosted runner that polls GitHub outbound, and the job is routed to it
+by the label in `runner`. Servers are independent — `fail-fast` is off so one
+broken VM still lets the others get the release, and each has its own
+`concurrency` group so their deploys never queue behind each other.
+
+`scripts/deploy.sh` contains no server-specific values; everything that differs
+comes from the matrix. Everything that must *not* be shared (database password,
+`AUTH_URL`, admin credentials, uploads, Postgres data) lives in the untracked
+`.env` and the Docker volumes on each VM, so the same commit produces a
+different site per subdivision.
+
+To deploy to one server only, run the workflow manually from the Actions tab
+and pick it from the **target** dropdown.
+
+### Adding a deployment target
+
+1. **Prepare the VM.** Install Docker and Compose, then create the deployment
+   checkout and its environment file:
+
+   ```bash
+   git clone https://github.com/VTKLeuven/werkgroepen-template.git ~/werkgroepen-template
+   cd ~/werkgroepen-template
+   cp .env.example .env   # then fill in real values for this subdivision
+   ```
+
+   The deploy script refuses to run if that directory is not a git checkout.
+   Make sure the account that will run the runner is in the `docker` group
+   (`sudo usermod -aG docker $USER`, then log out and back in).
+
+2. **Register a self-hosted runner** on that VM. In the repository, go to
+   Settings → Actions → Runners → New self-hosted runner, pick Linux, and run
+   the commands it shows. When `config.sh` asks for additional labels, give the
+   server's short name (for example `chemix`); the workflow matches on
+   `[self-hosted, <label>]`. Then install it as a service so it survives a
+   reboot:
+
+   ```bash
+   sudo ./svc.sh install
+   sudo ./svc.sh start
+   ```
+
+   The runner polls GitHub over outbound HTTPS, which is why this works without
+   a public IP or an inbound firewall rule.
+
+3. **Add the server to the workflow**: one entry in `TARGETS`, plus its name in
+   the `workflow_dispatch` `options` list so it can be deployed on its own.
+   `deploy_dir` must be the absolute path from step 1
+   (`/home/<user>/werkgroepen-template`). Do this only once the runner is
+   online: until then its job sits queued on every push to `main`.
+
+4. **Point the proxy at it** and deploy: push to `main`, or run the workflow
+   manually with the new target selected.
+
+If a deploy fails, the script rolls the checkout back to the previous commit
+and rebuilds it, so the site stays up. Run it by hand on the VM to see why:
+
+```bash
+cd ~/werkgroepen-template && bash scripts/deploy.sh
+```
+
+## Environment files
+
 **Write `.env` values unquoted.** Compose loads the file with `format: raw` so
 that a `$` in a password survives; the tradeoff is that quotes are not
 stripped, and `ADMIN_PASSWORD="hunter2"` would make the quote characters part
