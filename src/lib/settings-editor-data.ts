@@ -106,6 +106,7 @@ export async function getSettingsEditorData(
       },
       heroButtonUrl: settings.heroButtonUrl ?? "",
       heroTextPosition: settings.heroTextPosition,
+      heroOverlayIntensity: settings.heroOverlayIntensity,
       contactEmail: settings.contactEmail,
       facebookUrl: settings.facebookUrl ?? "",
       instagramUrl: settings.instagramUrl ?? "",

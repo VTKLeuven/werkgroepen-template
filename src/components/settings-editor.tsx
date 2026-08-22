@@ -73,6 +73,7 @@ type EditorInitial = {
   copy: LocalizedCopy;
   heroButtonUrl: string;
   heroTextPosition: HeroTextPosition;
+  heroOverlayIntensity: number;
   contactEmail: string;
   facebookUrl: string;
   instagramUrl: string;
@@ -117,11 +118,13 @@ export function SettingsEditor({
   saved,
   view,
   returnTo,
+  initialShowPreview = false,
 }: {
   initial: EditorInitial;
   saved: boolean;
   view: SettingsEditorView;
   returnTo: "/admin/settings" | "/admin/homepage" | "/admin/header";
+  initialShowPreview?: boolean;
 }) {
   const [languageChoice, setLanguageChoice] = useState<"single" | "bilingual">(
     initial.languageMode === "bilingual" ? "bilingual" : "single",
@@ -133,6 +136,9 @@ export function SettingsEditor({
   const [logoMode, setLogoMode] = useState<LogoMode>(initial.logoMode);
   const [heroTextPosition, setHeroTextPosition] = useState(
     initial.heroTextPosition,
+  );
+  const [heroOverlayIntensity, setHeroOverlayIntensity] = useState(
+    initial.heroOverlayIntensity ?? 70,
   );
   const [copy, setCopy] = useState(initial.copy);
   const [colors, setColors] = useState(initial.colors);
@@ -150,7 +156,7 @@ export function SettingsEditor({
   const [removeAboutImage, setRemoveAboutImage] = useState(false);
   const [removeFavicon, setRemoveFavicon] = useState(false);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(initialShowPreview);
   const [homepageSections, setHomepageSections] = useState(
     initial.homepageSections,
   );
@@ -187,7 +193,10 @@ export function SettingsEditor({
   const activePreviewLocale =
     languageChoice === "single" ? defaultLocale : previewLocale;
   const visibleAboutImageUrl = removeAboutImage ? null : aboutImageUrl;
-  const heroPosition = heroTextPositionClasses(heroTextPosition);
+  const heroPosition = heroTextPositionClasses(
+    heroTextPosition,
+    heroOverlayIntensity,
+  );
 
   function updateCopy(key: CopyKey, locale: Locale, nextValue: string) {
     setDirty(true);
@@ -495,6 +504,39 @@ export function SettingsEditor({
                 )?.label}
               </p>
             </fieldset>
+            <label className="block text-sm font-semibold text-[#3a352f]">
+              <span className="flex items-center justify-between gap-2">
+                <span>Overlay gradient strength</span>
+                <output className="font-mono text-xs font-semibold text-[#006d77]">
+                  {Math.round(heroOverlayIntensity)}%
+                </output>
+              </span>
+              <p className="mt-1 text-xs font-normal leading-5 text-[#6f6860]">
+                Adjust the dark gradient behind the text to keep the headline readable over bright photos.
+              </p>
+              <input
+                type="range"
+                name="heroOverlayIntensity"
+                min="0"
+                max="100"
+                step="1"
+                value={heroOverlayIntensity}
+                onChange={(event) =>
+                  setHeroOverlayIntensity(Number(event.target.value))
+                }
+                aria-label="Overlay gradient strength"
+                aria-valuenow={heroOverlayIntensity}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuetext={`${Math.round(heroOverlayIntensity)}%`}
+                className="mt-3 block w-full accent-[#006d77]"
+              />
+              <span className="mt-1 flex justify-between text-[11px] font-medium text-[#9b948a]">
+                <span>0% (Transparent)</span>
+                <span>70% (Default)</span>
+                <span>100% (Darkest)</span>
+              </span>
+            </label>
             <LocalizedControl
               label="Eyebrow"
               field="heroEyebrow"
@@ -957,7 +999,10 @@ export function SettingsEditor({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : null}
-              <div className={`absolute inset-0 ${heroPosition.overlay}`} />
+              <div
+                className="absolute inset-0"
+                style={{ background: heroPosition.overlayGradient }}
+              />
               <div
                 className={`relative z-10 w-full max-w-[92%] ${heroPosition.content}`}
               >

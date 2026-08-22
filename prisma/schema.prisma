@@ -117,6 +117,7 @@ model SiteSettings {
   heroButtonTextNl       String?
   heroButtonUrl          String?
   heroTextPosition       HeroTextPosition @default(bottomLeft)
+  heroOverlayIntensity   Float            @default(70)
   aboutTitle             String           @default("About us")
   aboutTitleEn           String           @default("About us")
   aboutTitleNl           String           @default("Over ons")

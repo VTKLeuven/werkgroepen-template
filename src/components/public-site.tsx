@@ -82,7 +82,10 @@ export function PublicSite({
   const heroButtonHref = settings.heroButtonUrl
     ? localizeHref(settings.heroButtonUrl, locale, settings.languageMode)
     : "";
-  const heroPosition = heroTextPositionClasses(settings.heroTextPosition);
+  const heroPosition = heroTextPositionClasses(
+    settings.heroTextPosition,
+    settings.heroOverlayIntensity,
+  );
 
   function renderSection(key: SectionKey) {
     switch (key) {
@@ -381,7 +384,10 @@ export function PublicSite({
         ) : (
           <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--primary),#263238_55%,var(--accent))]" />
         )}
-        <div className={`absolute inset-0 ${heroPosition.overlay}`} />
+        <div
+          className="absolute inset-0"
+          style={{ background: heroPosition.overlayGradient }}
+        />
         <div
           className={`relative z-10 mx-auto flex w-full max-w-7xl ${heroPosition.container}`}
         >

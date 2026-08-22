@@ -141,6 +141,7 @@ export const defaultSettings = {
   heroButtonTextNl: "Bekijk onze events",
   heroButtonUrl: "#events",
   heroTextPosition: "bottomLeft" as const,
+  heroOverlayIntensity: 70,
   aboutTitle: "About us",
   aboutTitleEn: "About us",
   aboutTitleNl: "Over ons",

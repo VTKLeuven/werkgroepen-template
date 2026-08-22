@@ -105,6 +105,20 @@ function heroTextPositionValue(
     : fallback;
 }
 
+function heroOverlayIntensityValue(
+  formData: FormData,
+  fallback = 70,
+  minimum = 0,
+  maximum = 100,
+): number {
+  if (!formData.has("heroOverlayIntensity")) {
+    return fallback;
+  }
+  const input = Number.parseFloat(value(formData, "heroOverlayIntensity"));
+  if (!Number.isFinite(input)) return fallback;
+  return Math.min(maximum, Math.max(minimum, input));
+}
+
 type CoverDisplayModeValue =
   | "full"
   | "flexible"
@@ -355,6 +369,10 @@ export async function updateSettings(formData: FormData) {
     heroTextPosition: heroTextPositionValue(
       formData,
       previousSettings?.heroTextPosition ?? "bottomLeft",
+    ),
+    heroOverlayIntensity: heroOverlayIntensityValue(
+      formData,
+      previousSettings?.heroOverlayIntensity ?? 70,
     ),
     aboutTitle: canonical(contentLocale, aboutTitle),
     aboutTitleEn: aboutTitle.en,
