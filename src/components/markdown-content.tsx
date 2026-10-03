@@ -1,13 +1,38 @@
-import Markdown from "react-markdown";
+import Markdown, { type Options as MarkdownOptions } from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
+import { pageHtmlSchema, rehypePageEmbeds } from "@/lib/page-html";
+
+// Single tildes stay literal, so text written before GFM such as "~20 people"
+// does not turn into strikethrough.
+const remarkPlugins: MarkdownOptions["remarkPlugins"] = [
+  [remarkGfm, { singleTilde: false }],
+];
+
+// rehype-raw must run first so the sanitizer sees the HTML as elements.
+const htmlRehypePlugins: MarkdownOptions["rehypePlugins"] = [
+  rehypeRaw,
+  [rehypeSanitize, pageHtmlSchema],
+  rehypePageEmbeds,
+];
+
+// The sanitizer already prefixes ids, so footnotes must not be prefixed twice.
+const htmlRemarkRehypeOptions: MarkdownOptions["remarkRehypeOptions"] = {
+  clobberPrefix: "",
+};
 
 export function MarkdownContent({
   children,
   className = "",
   headingOffset = 1,
+  allowHtml = false,
 }: {
   children: string | null | undefined;
   className?: string;
   headingOffset?: 1 | 2 | 3;
+  // Renders HTML through the pageHtmlSchema allow list instead of dropping it.
+  allowHtml?: boolean;
 }) {
   const source = children?.trim();
 
@@ -16,7 +41,10 @@ export function MarkdownContent({
   return (
     <div className={`markdown-content ${className}`.trim()}>
       <Markdown
-        skipHtml
+        skipHtml={!allowHtml}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={allowHtml ? htmlRehypePlugins : undefined}
+        remarkRehypeOptions={allowHtml ? htmlRemarkRehypeOptions : undefined}
         components={{
           h1({ node, ...props }) {
             void node;

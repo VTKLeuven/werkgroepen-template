@@ -29,6 +29,7 @@ import { MarkdownContent } from "@/components/markdown-content";
 import { MarkdownEditor } from "@/components/markdown-editor";
 import type { AdminLanguageConfig } from "@/components/admin-localized-field";
 import { saveCustomPage } from "@/lib/admin-actions";
+import { pageEmbedProviders, pageHtmlClasses } from "@/lib/page-html";
 
 type Locale = "en" | "nl";
 type PageCopyKey = "title" | "eyebrow" | "supportingText" | "content";
@@ -351,8 +352,10 @@ export function CustomPageForm({
           onChange={(locale, nextValue) =>
             updateCopy("content", locale, nextValue)
           }
+          placeholder="Write with Markdown or HTML…"
           markdown
         />
+        <PageHtmlHelp />
 
         <div className="flex flex-wrap gap-5">
           <label className="flex items-center gap-3 text-sm font-semibold">
@@ -627,6 +630,7 @@ function LocalizedPageField({
                   required={required}
                   placeholder={placeholder}
                   minHeight="12rem"
+                  allowHtml
                 />
               ) : multiline ? (
                 <textarea
@@ -737,13 +741,73 @@ function PreviewPageContent({
   mutedColor: string;
 }) {
   return content ? (
-    <MarkdownContent headingOffset={1} className="markdown-preview-page">
+    <MarkdownContent
+      allowHtml
+      headingOffset={1}
+      className="markdown-preview-page"
+    >
       {content}
     </MarkdownContent>
   ) : (
     <p className="italic" style={{ color: mutedColor }}>
       Page content will appear here.
     </p>
+  );
+}
+
+const pageHtmlExample = `<div class="cols-2">
+<div class="card">
+
+### Markdown inside HTML
+
+Leave an empty line after the opening tag.
+
+</div>
+<div class="callout">
+
+<a class="button" href="/pages/contact">Contact us</a>
+
+</div>
+</div>`;
+
+function PageHtmlHelp() {
+  const embedLabels = [...new Set(pageEmbedProviders.map(({ label }) => label))];
+
+  return (
+    <details className="rounded-2xl border border-black/10 p-4">
+      <summary className="cursor-pointer text-sm font-semibold">
+        HTML and layout options
+      </summary>
+      <div className="mt-3 grid gap-3 text-xs leading-5 text-[#6f6860]">
+        <p>
+          Page content accepts Markdown, tables and HTML. Scripts, style tags
+          and attributes, forms and event handlers are removed when the page is
+          shown, so check the preview.
+        </p>
+        <p>
+          Layout classes:{" "}
+          {pageHtmlClasses.map((name, index) => (
+            <span key={name}>
+              {index > 0 ? ", " : null}
+              <code className="rounded bg-black/5 px-1 font-mono">{name}</code>
+            </span>
+          ))}
+          . Other classes are removed.
+        </p>
+        <p>
+          Embeds with <code className="rounded bg-black/5 px-1 font-mono">&lt;iframe&gt;</code>{" "}
+          work for {embedLabels.join(", ")}. Use the embed code the site
+          offers; other iframes are removed.
+        </p>
+        <p>
+          Markdown inside an HTML tag only works with an empty line between
+          the tag and the Markdown.
+        </p>
+        <pre className="overflow-x-auto rounded-xl bg-[#151923] p-3 font-mono text-[11px] leading-5 text-[#f5f7ff]">
+          {pageHtmlExample}
+        </pre>
+      </div>
+    </details>
   );
 }
 

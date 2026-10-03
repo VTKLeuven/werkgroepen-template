@@ -127,7 +127,7 @@ export default async function CustomPageRoute({
     />
   ) : null;
   const contentElement = content ? (
-    <MarkdownContent className="site-page-content max-w-4xl">
+    <MarkdownContent allowHtml className="site-page-content max-w-4xl">
       {content}
     </MarkdownContent>
   ) : null;

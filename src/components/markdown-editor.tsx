@@ -116,6 +116,7 @@ export function MarkdownEditor({
   placeholder = "Write with Markdown…",
   minHeight = "15rem",
   headingOffset = 1,
+  allowHtml = false,
 }: {
   name: string;
   ariaLabel: string;
@@ -126,6 +127,7 @@ export function MarkdownEditor({
   placeholder?: string;
   minHeight?: string;
   headingOffset?: 1 | 2 | 3;
+  allowHtml?: boolean;
 }) {
   const [internalSource, setInternalSource] = useState(defaultValue);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
@@ -315,7 +317,9 @@ export function MarkdownEditor({
           className="bg-white px-5 py-5"
         >
           {source.trim() ? (
-            <MarkdownContent headingOffset={headingOffset}>{source}</MarkdownContent>
+            <MarkdownContent headingOffset={headingOffset} allowHtml={allowHtml}>
+              {source}
+            </MarkdownContent>
           ) : (
             <p className="text-sm italic text-[#9b948a]">Nothing to preview yet.</p>
           )}
